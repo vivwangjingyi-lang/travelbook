@@ -26,11 +26,13 @@ export default function FloatingNavbar({ currentChapter }: FloatingNavbarProps) 
 
   // Handle navigation to other chapters
   const handleNavigate = (path: string) => {
-    // Auto-save when navigating between chapters
+    // Show confirmation modal when navigating with unsaved changes
     if (isDirty) {
-      saveBook();
+      setTargetPath(path);
+      setShowModal(true);
+    } else {
+      router.push(path);
     }
-    router.push(path);
   };
 
   // Handle back to library

@@ -21,18 +21,11 @@ export default function Introduction() {
   const router = useRouter();
   const { currentBook, updateBook, isDirty, saveBook, resetBook } = useTravelBookStore();
   
-  const [formData, setFormData] = useState<FormData>({
-    title: currentBook?.title || "",
-    destination: currentBook?.destination || "",
-    companions: currentBook?.companions || "",
-    description: currentBook?.description || "",
-    coverImage: currentBook?.coverImage || null,
-    startDate: currentBook?.startDate || "",
-    endDate: currentBook?.endDate || ""
-  });
-  
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState<FormData>({ title: currentBook?.title || "", destination: currentBook?.destination || "", companions: currentBook?.companions || "", description: currentBook?.description || "", coverImage: currentBook?.coverImage || null, startDate: currentBook?.startDate || "", endDate: currentBook?.endDate || "" });  
+  const [errors, setErrors] = useState<Record<string, string>>({});  
   const [showModal, setShowModal] = useState(false);
+  const [isFormValid, setIsFormValid] = useState(false);
+  const [isBookSaved, setIsBookSaved] = useState(false);
   
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -43,6 +36,9 @@ export default function Introduction() {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
     }
+    
+    // Validate form and update isFormValid state
+    validateFormForSave();
   };
   
   // Handle cover image upload with compression
@@ -101,7 +97,7 @@ export default function Introduction() {
     }
   };
   
-  // Validate form
+  // Validate form for submission
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
@@ -117,16 +113,40 @@ export default function Introduction() {
       newErrors.startDate = "Start date is required";
     }
     
-    if (!formData.endDate) {
-      newErrors.endDate = "End date is required";
-    }
-    
+    // Validate end date only if it's provided
     if (formData.startDate && formData.endDate && new Date(formData.endDate) < new Date(formData.startDate)) {
       newErrors.endDate = "End date must be after start date";
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Validate form for saving book
+  const validateFormForSave = () => {
+    const isValid = !!(formData.title.trim() && formData.destination.trim() && formData.startDate);
+    setIsFormValid(isValid);
+    return isValid;
+  };
+
+  // Handle save book
+  const handleSaveBook = () => {
+    if (validateFormForSave() && currentBook) {
+      // Update the current book with form data
+      updateBook({
+        title: formData.title,
+        description: formData.description,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        destination: formData.destination,
+        companions: formData.companions,
+        ...(formData.coverImage && { coverImage: formData.coverImage })
+      });
+      
+      // Save the book to storage
+      saveBook();
+      setIsBookSaved(true);
+    }
   };
   
   // Handle form submission
@@ -153,11 +173,26 @@ export default function Introduction() {
   // Handle back to library
   const handleBackToLibrary = () => {
     if (isDirty) {
+      // Check if required fields are filled
+      if (!validateFormForSave()) {
+        // Show error message for missing required fields
+        alert('Book cannot be saved. Please fill in all required fields: Journey Name, Destination, and Start Date.');
+        return;
+      }
       setShowModal(true);
     } else {
       router.push('/');
     }
   };
+
+  // Check form validity on component mount
+  useEffect(() => {
+    validateFormForSave();
+    // Check if book has been saved already
+    if (currentBook?.title && currentBook?.destination && currentBook?.startDate) {
+      setIsBookSaved(true);
+    }
+  }, [currentBook]);
 
   // Save and exit
   const handleSaveAndExit = () => {
@@ -339,7 +374,7 @@ export default function Introduction() {
             </div>
             
             {/* Navigation Buttons */}
-            <div className="flex justify-between pt-8">
+            <div className="flex justify-between pt-8 gap-4">
               <button
                 type="button"
                 onClick={handleBackToLibrary}
@@ -349,8 +384,18 @@ export default function Introduction() {
               </button>
               
               <button
+                type="button"
+                onClick={() => handleSaveBook()}
+                disabled={!isFormValid}
+                className={`px-6 py-2.5 rounded-full shadow-lg transition-all duration-300 ${isFormValid ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl' : 'bg-gray-400 text-gray-200 cursor-not-allowed'}`}
+              >
+                Save Book
+              </button>
+              
+              <button
                 type="submit"
-                className="px-6 py-2.5 bg-slate-800 text-white rounded-full shadow-lg hover:bg-slate-700 hover:shadow-xl transition-all duration-300"
+                disabled={!isBookSaved}
+                className={`px-6 py-2.5 rounded-full shadow-lg transition-all duration-300 ${isBookSaved ? 'bg-slate-800 text-white hover:bg-slate-700 hover:shadow-xl' : 'bg-gray-400 text-gray-200 cursor-not-allowed'}`}
               >
                 Continue to Chapter 1
               </button>

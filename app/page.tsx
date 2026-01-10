@@ -37,7 +37,7 @@ export default function Home() {
   // 选择书籍
   const handleSelectBook = (bookId: string) => {
     selectBook(bookId);
-    router.push('/canvas');
+    router.push('/introduction');
   };
 
   // 打开删除确认模态框
@@ -56,112 +56,121 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen p-8 pb-20 font-[family-name:var(--font-geist-sans)]">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 p-8 pb-20 font-[family-name:var(--font-geist-sans)] overflow-hidden">
+      {/* Decorative Background Elements */}
+      <div className="fixed top-0 right-0 w-96 h-96 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+      <div className="fixed bottom-0 left-0 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+      <div className="fixed top-1/2 left-1/2 w-96 h-96 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+      
+      <div className="max-w-6xl mx-auto relative z-10">
+        {/* Hero Section */}
         <header className="mb-16 text-center">
-          <h1 className="text-6xl font-bold mb-4 text-slate-800 font-[family-name:var(--font-playfair-display)]">The Anthology</h1>
-          <p className="text-xl text-slate-600 leading-relaxed max-w-2xl mx-auto">
-            Every trip is a story. Where will you go next?
-          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <h1 className="text-6xl md:text-7xl font-bold mb-4 text-slate-900 font-[family-name:var(--font-playfair-display)] leading-tight tracking-[0.05em]">The Anthology</h1>
+            <p className="text-xl md:text-2xl text-slate-600 leading-relaxed max-w-3xl mx-auto mb-12">
+              Every trip is a story waiting to be told. Craft your travel memories into beautiful digital journals.
+            </p>
+          </motion.div>
         </header>
 
-        {/* Create New Button - Always visible */}
-        <div className="mb-16 text-center">
-          <button
-            onClick={handleCreateBook}
-            className="px-8 py-3 bg-slate-800 text-white rounded-full shadow-lg hover:bg-slate-700 hover:shadow-xl transition-all duration-300 text-lg"
+        {/* Call to Action Buttons - Moved above features */}
+        <section className="mb-20">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-12"
           >
-            Draft New Journey
-          </button>
-        </div>
-
-        {/* Books Grid */}
-        {books.length === 0 ? (
-          // Empty State - Beautiful Centered Design
-          <div className="flex flex-col items-center justify-center py-20">
-            <motion.div
-              className="mb-8 w-32 h-32 rounded-full bg-gradient-to-br from-indigo-100 to-amber-100 flex items-center justify-center"
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
+            {/* Project Examples Button */}
+            <motion.button
+              onClick={() => router.push('/examples')}
+              className="px-12 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:shadow-indigo-500/30 transition-all duration-300 text-lg font-medium"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
             >
-              <span className="text-6xl">📖</span>
-            </motion.div>
-            <h2 className="text-3xl font-semibold mb-4 text-slate-800 font-[family-name:var(--font-playfair-display)]">Start Your First Chapter</h2>
-            <p className="text-slate-600 leading-relaxed max-w-md text-center">
-              Every great journey begins with a single step. Use the button above to create your first travel story.
-            </p>
-          </div>
-        ) : (
-          // Books Grid
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {books.map((book: TravelBook) => (
-              <motion.div
-                key={book.id}
-                className="aspect-[3/4] rounded-xl overflow-hidden relative group cursor-pointer"
-                whileHover={{
-                  scale: 1.05,
-                  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
-                }}
-                transition={{ duration: 0.3 }}
-                onClick={() => handleSelectBook(book.id)}
-              >
-                {/* Book Cover */}
-                <div className="absolute inset-0">
-                  {book.coverImage ? (
-                    <img
-                      src={book.coverImage}
-                      alt={`Cover of ${book.title}`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-indigo-300 via-purple-200 to-amber-200">
-                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-400/20 via-purple-300/20 to-amber-300/20"></div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Gradient Overlay for Text Readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none"></div>
-                
-                {/* Book Content (At Bottom) */}
-                <div className="absolute bottom-0 left-0 right-0 p-6 text-white pointer-events-none">
-                  {/* Date Range */}
-                  <div className="text-sm opacity-90 mb-2">
-                    {book.startDate} - {book.endDate}
-                  </div>
-                  
-                  {/* Title */}
-                  <h3 className="text-2xl font-semibold text-white font-[family-name:var(--font-playfair-display)]">{book.title}</h3>
-                </div>
-                
-                {/* Delete Button (appears on hover) */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteClick(book.id);
-                  }}
-                  className="absolute top-3 right-3 bg-red-500/80 backdrop-blur-sm text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-all duration-300 opacity-0 group-hover:opacity-100 z-10"
-                  title="Delete this journey"
-                >
-                  🗑️
-                </button>
-              </motion.div>
-            ))}
-          </div>
-        )}
+              Project Examples
+            </motion.button>
+            
+            {/* My Travel Books Button */}
+            <motion.button
+              onClick={() => router.push('/library')}
+              className="px-12 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:shadow-indigo-500/30 transition-all duration-300 text-lg font-medium"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              My Travel Books
+            </motion.button>
+            
+            {/* Create New Book Button */}
+            <motion.button
+              onClick={handleCreateBook}
+              className="px-12 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:shadow-indigo-500/30 transition-all duration-300 text-lg font-medium"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Create New Book
+            </motion.button>
+          </motion.div>
+        </section>
 
-        {/* Delete Confirmation Modal */}
-        <ConfirmationModal
-          isOpen={showDeleteModal}
-          onClose={() => setShowDeleteModal(false)}
-          onConfirm={confirmDeleteBook}
-          title="Delete Journey"
-          message="Are you sure you want to delete this journey? This cannot be undone."
-          confirmText="Delete"
-          cancelText="Cancel"
-          destructive
-        />
+        {/* Features Section */}
+        <section className="mb-28">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            <h2 className="text-3xl md:text-4xl font-semibold text-center mb-24 text-slate-800 font-[family-name:var(--font-playfair-display)]">Why Choose The Anthology?</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+              {/* Feature 1 */}
+              <motion.div
+                className="bg-white/90 backdrop-blur-md rounded-2xl p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 border border-slate-200/50"
+                whileHover={{ y: -8 }}
+              >
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <span className="text-2xl text-slate-600">✨</span>
+                </div>
+                <h3 className="text-2xl font-semibold text-center mb-4 text-slate-800 font-[family-name:var(--font-playfair-display)]">Beautifully Designed</h3>
+                <p className="text-slate-600 text-center leading-relaxed">
+                  Create stunning travel journals with our elegant templates and customizable layouts that make your memories shine.
+                </p>
+              </motion.div>
+              
+              {/* Feature 2 */}
+              <motion.div
+                className="bg-white/90 backdrop-blur-md rounded-2xl p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 border border-slate-200/50"
+                whileHover={{ y: -8 }}
+              >
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <span className="text-2xl text-slate-600">📸</span>
+                </div>
+                <h3 className="text-2xl font-semibold text-center mb-4 text-slate-800 font-[family-name:var(--font-playfair-display)]">Memories Preserved</h3>
+                <p className="text-slate-600 text-center leading-relaxed">
+                  Organize your photos, notes, and experiences in one beautiful digital space that you can revisit anytime.
+                </p>
+              </motion.div>
+              
+              {/* Feature 3 */}
+              <motion.div
+                className="bg-white/90 backdrop-blur-md rounded-2xl p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 border border-slate-200/50"
+                whileHover={{ y: -8 }}
+              >
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <span className="text-2xl text-slate-600">✈️</span>
+                </div>
+                <h3 className="text-2xl font-semibold text-center mb-4 text-slate-800 font-[family-name:var(--font-playfair-display)]">Easy to Use</h3>
+                <p className="text-slate-600 text-center leading-relaxed">
+                  Intuitive interface makes it simple to create and share your travel stories with friends and family.
+                </p>
+              </motion.div>
+            </div>
+          </motion.div>
+        </section>
       </div>
     </div>
   );

@@ -52,7 +52,9 @@ TravelBook是一款优雅的旅行规划应用，帮助用户创建、管理和�
 - [x] 旅程基本信息填写（名称、目的地、日期）
 - [x] 可选信息填写（同伴、描述）
 - [x] 封面图片上传功能
-- [x] 表单验证（名称、目的地必填）
+- [x] 表单验证（名称、目的地、开始日期必填）
+- [x] Save Book按钮，保存当前旅程信息
+- [x] 只有保存后才能继续到下一章节
 - [x] 导航到下一章节
 
 ### 3.3 出发页（Departure）
@@ -90,11 +92,12 @@ TravelBook是一款优雅的旅行规划应用，帮助用户创建、管理和�
 - [x] 返回旅行库功能
 
 ### 3.8 通用功能
-- [x] 章节导航功能
-- [x] 未保存修改提示
-- [x] 数据本地存储（localStorage）
+- [x] 章节导航功能（Floating Capsule Navigation）
+- [x] 未保存修改提示（所有页面跳转时）
+- [x] 数据本地存储（IndexedDB为主，localStorage为后备）
 - [x] 图片压缩功能（避免存储超限）
 - [x] 响应式设计
+- [x] 保存状态管理（确保数据一致性）
 
 ## 4. 技术需求
 
@@ -105,7 +108,8 @@ TravelBook是一款优雅的旅行规划应用，帮助用户创建、管理和�
 - Zustand 5.0.9（状态管理）
 - Framer Motion（动画）
 - Tailwind CSS（样式）
-- LocalStorage（数据存储）
+- IndexedDB（主要数据存储，50MB+容量）
+- LocalStorage（后备存储，兼容性支持）
 
 ### 4.2 数据模型
 
@@ -137,6 +141,14 @@ interface DailyItinerary {
   selectedPoiIds: string[];
   orderedPois: DailyPOI[];
   routes: Route[];
+}
+
+interface Memo {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  pinned?: boolean;
 }
 ```
 
@@ -182,8 +194,8 @@ interface DailyItinerary {
 ## 7. 风险与限制
 
 ### 7.1 技术限制
-- LocalStorage存储容量限制（约5MB）
-- 不支持离线访问（需浏览器支持localStorage）
+- IndexedDB存储容量限制（约50MB，取决于浏览器）
+- 不支持离线访问（需浏览器支持IndexedDB或localStorage）
 - 图片处理依赖浏览器Canvas API
 
 ### 7.2 用户限制
