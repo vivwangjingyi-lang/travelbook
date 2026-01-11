@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTravelBookStore } from '@/stores/travelBookStore';
+import { useLanguageStore } from '@/stores/languageStore';
+import { getTranslation } from '@/utils/i18n';
 import ConfirmationModal from './ConfirmationModal';
 
 interface FloatingNavbarProps {
@@ -12,16 +14,20 @@ interface FloatingNavbarProps {
 export default function FloatingNavbar({ currentChapter }: FloatingNavbarProps) {
   const router = useRouter();
   const { currentBook, isDirty, saveBook, resetBook } = useTravelBookStore();
+  const { language } = useLanguageStore();
   const [showModal, setShowModal] = useState(false);
   const [targetPath, setTargetPath] = useState<string | null>(null);
+  
+  // 翻译辅助函数
+  const t = (key: string) => getTranslation(key, language);
 
   const chapters = [
-    { number: 0, name: 'Introduction', path: '/introduction' },
-    { number: 1, name: 'Departure', path: '/departure' },
-    { number: 2, name: 'Collection', path: '/collection' },
-    { number: 3, name: 'Canvas', path: '/canvas' },
-    { number: 4, name: 'Plot', path: '/plot' },
-    { number: 5, name: 'Epilogue', path: '/epilogue' },
+    { number: 0, key: 'chapter.introduction', path: '/introduction' },
+    { number: 1, key: 'chapter.departure', path: '/departure' },
+    { number: 2, key: 'chapter.collection', path: '/collection' },
+    { number: 3, key: 'chapter.canvas', path: '/canvas' },
+    { number: 4, key: 'chapter.plot', path: '/plot' },
+    { number: 5, key: 'chapter.epilogue', path: '/epilogue' },
   ];
 
   // Handle navigation to other chapters
@@ -80,7 +86,7 @@ export default function FloatingNavbar({ currentChapter }: FloatingNavbarProps) 
           onClick={handleBackToLibrary}
           className="px-4 py-2 bg-white/90 text-slate-600 hover:bg-white/100 hover:shadow-md rounded-full text-sm transition-all duration-300 whitespace-nowrap"
         >
-          ← Library
+          ← {t('nav.library')}
         </button>
         
         {/* Chapter Navigation Buttons */}
@@ -92,7 +98,7 @@ export default function FloatingNavbar({ currentChapter }: FloatingNavbarProps) 
               ? 'bg-slate-800 text-white shadow-lg' 
               : 'bg-white/90 text-slate-600 hover:bg-white/100 hover:shadow-md'}`}
           >
-            Chapter {chapter.number}: {chapter.name}
+            {t('nav.chapter')} {chapter.number}: {t(chapter.key)}
           </button>
         ))}
       </nav>
@@ -102,17 +108,17 @@ export default function FloatingNavbar({ currentChapter }: FloatingNavbarProps) 
         isOpen={showModal}
         onClose={handleCancel}
         onConfirm={handleSaveAndExit}
-        title="You have unsaved changes"
-        message="What would you like to do with your unsaved changes?"
-        confirmText="Save & Exit"
-        cancelText="Cancel"
+        title={t('introduction.unsavedChanges')}
+        message={t('introduction.unsavedMessage')}
+        confirmText={t('introduction.saveAndExit')}
+        cancelText={t('button.cancel')}
       >
         {/* Additional button for Discard Changes */}
         <button
           onClick={handleDiscardChanges}
           className="absolute bottom-6 left-6 px-4 py-2 bg-gray-200/80 backdrop-blur-sm text-slate-700 rounded-full shadow-lg hover:bg-gray-300/80 transition-all duration-300 text-sm"
         >
-          Discard Changes
+          {t('introduction.discardChanges')}
         </button>
       </ConfirmationModal>
     </>

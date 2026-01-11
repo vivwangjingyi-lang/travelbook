@@ -1,21 +1,36 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTravelBookStore, TravelBook } from "@/stores/travelBookStore";
+import { useLanguageStore } from "@/stores/languageStore";
+import { getTranslation } from "@/utils/i18n";
 import ConfirmationModal from "@/components/ConfirmationModal";
 
 export default function Library() {
   const router = useRouter();
   const { books, loadBooks, deleteBook, selectBook } = useTravelBookStore();
+  const { language } = useLanguageStore();
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // 翻译辅助函数
+  const t = (key: string) => getTranslation(key, language);
+  
+  // 跟踪组件是否已经挂载
+  const isInitialMount = useRef(true);
 
   // 加载书籍列表
   useEffect(() => {
-    loadBooks();
-  }, []);
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // 只有当books数组为空时才从存储中加载，避免覆盖掉刚刚创建的新书
+      if (books.length === 0) {
+        loadBooks();
+      }
+    }
+  }, []); // 空依赖数组，只在组件挂载时运行一次
 
   // 选择书籍
   const handleSelectBook = (bookId: string) => {
@@ -48,10 +63,10 @@ export default function Library() {
               onClick={() => router.back()}
               className="text-slate-600 hover:text-slate-900 transition-colors duration-300"
             >
-              ← Back to Home
+              {t('nav.backToHome')}
             </button>
             
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 font-[family-name:var(--font-playfair-display)]">My Library</h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 font-[family-name:var(--font-playfair-display)]">{t('library.title')}</h1>
             
             {/* Empty div for balance */}
             <div className="w-24"></div>
@@ -69,15 +84,15 @@ export default function Library() {
             >
               <span className="text-8xl">📚</span>
             </motion.div>
-            <h2 className="text-3xl font-semibold mb-6 text-slate-800 font-[family-name:var(--font-playfair-display)]">Your Library is Empty</h2>
+            <h2 className="text-3xl font-semibold mb-6 text-slate-800 font-[family-name:var(--font-playfair-display)]">{t('library.empty')}</h2>
             <p className="text-slate-600 leading-relaxed max-w-md text-center mb-8">
-              No travel books yet. Start creating your first travel journal today!
+              {t('library.emptyDescription')}
             </p>
             <button
               onClick={() => router.push('/')}
               className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:shadow-indigo-500/30 transition-all duration-300 text-lg font-medium"
             >
-              Create New Book
+              {t('library.createNewBook')}
             </button>
           </div>
         ) : (
@@ -89,15 +104,15 @@ export default function Library() {
             className="mb-20"
           >
             <p className="text-xl text-slate-600 mb-10 text-center">
-              You have {books.length} travel {books.length === 1 ? 'book' : 'books'}
+              {t('library.bookCount').replace('{count}', books.length.toString())}
             </p>
             
-            {/* Waterfall Flow Layout */}
-            <div className="columns-1 sm:columns-2 lg:columns-4 gap-8">
+            {/* Grid Layout */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
               {books.map((book: TravelBook, index) => (
                 <motion.div
                   key={book.id}
-                  className="mb-8 break-inside-avoid"
+                  className="break-inside-avoid"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -143,7 +158,7 @@ export default function Library() {
                         handleDeleteClick(book.id);
                       }}
                       className="absolute top-3 right-3 bg-red-500/80 backdrop-blur-sm text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-all duration-300 opacity-0 group-hover:opacity-100 z-10"
-                      title="Delete this journey"
+                      title={t('library.deleteJourney')}
                     >
                       🗑️
                     </button>
@@ -159,10 +174,10 @@ export default function Library() {
           isOpen={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}
           onConfirm={confirmDeleteBook}
-          title="Delete Journey"
-          message="Are you sure you want to delete this journey? This cannot be undone."
-          confirmText="Delete"
-          cancelText="Cancel"
+          title={t('library.deleteJourney')}
+          message={t('library.deleteConfirmation')}
+          confirmText={t('button.delete')}
+          cancelText={t('button.cancel')}
           destructive
         />
       </div>

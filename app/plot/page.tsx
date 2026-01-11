@@ -6,10 +6,17 @@ import { motion } from "framer-motion";
 import FloatingNavbar from "@/components/FloatingNavbar";
 import { useTravelBookStore, CanvasPOI, DailyPOI, TransportationType } from "@/stores/travelBookStore";
 import TravelCanvas from "@/components/TravelCanvas";
+import { useLanguageStore } from "@/stores/languageStore";
+import { getTranslation } from "@/utils/i18n";
 
 export default function Plot() {
   const router = useRouter();
   const { currentBook, setCurrentDay, ensureDailyItinerary, togglePoiSelection, reorderDailyPois, addRoute } = useTravelBookStore();
+  const { language } = useLanguageStore();
+  
+  // 翻译辅助函数
+  const t = (key: string) => getTranslation(key, language);
+  
   const [currentPhase, setCurrentPhase] = useState<'selection' | 'ordering'>('selection');
   const [selectedFromPoiId, setSelectedFromPoiId] = useState<string | null>(null);
   const [selectedToPoiId, setSelectedToPoiId] = useState<string | null>(null);
@@ -116,15 +123,15 @@ export default function Plot() {
       <div className="max-w-6xl mx-auto pt-24">
         {/* Header */}
         <header className="mb-8 text-center">
-          <h1 className="text-4xl font-bold mb-2 text-slate-800">Chapter IV: Plot</h1>
-          <p className="text-lg text-slate-600 leading-relaxed">Plan your daily itinerary</p>
+          <h1 className="text-4xl font-bold mb-2 text-slate-800">{t('plot.title')}</h1>
+          <p className="text-lg text-slate-600 leading-relaxed">{t('plot.subtitle')}</p>
         </header>
 
         {/* Main Content */}
         <main className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-xl shadow-xl p-8">
           {/* Day Navigation */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold mb-3 text-slate-800 text-center">Your Trip Itinerary</h2>
+            <h2 className="text-xl font-semibold mb-3 text-slate-800 text-center">{t('plot.yourItinerary')}</h2>
             <div className="flex justify-center items-center gap-2 flex-wrap">
               {Array.from({ length: totalDays }, (_, index) => index + 1).map((day) => (
                 <button
@@ -134,7 +141,7 @@ export default function Plot() {
                     ? 'bg-slate-800 text-white shadow-lg scale-105'
                     : 'bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white/90 hover:shadow-lg'}`}
                 >
-                  Day {day}
+                  {t('plot.day')} {day}
                 </button>
               ))}
             </div>
@@ -143,12 +150,12 @@ export default function Plot() {
           {/* Phase Information */}
           <div className="mb-6 text-center">
             <h2 className="text-2xl font-semibold mb-2 text-slate-800">
-              {currentPhase === 'selection' ? 'Select Points of Interest' : 'Order Your Itinerary'}
+              {currentPhase === 'selection' ? t('plot.selectionPhase') : t('plot.orderingPhase')}
             </h2>
             <p className="text-slate-600 leading-relaxed">
               {currentPhase === 'selection' 
-                ? 'Choose the points you want to visit on Day ' + selectedDay
-                : 'Arrange the order of your visits and create routes for Day ' + selectedDay}
+                ? t('plot.selectionDescription').replace('{day}', selectedDay.toString())
+                : t('plot.orderingDescription').replace('{day}', selectedDay.toString())}
             </p>
           </div>
 
@@ -180,7 +187,7 @@ export default function Plot() {
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                       : 'bg-slate-800 text-white hover:bg-slate-700 hover:shadow-xl'}`}
                   >
-                    Confirm Selection ({selectedPoiIds.length} selected)
+                    {t('plot.confirmSelection').replace('{count}', selectedPoiIds.length.toString())}
                   </button>
                 </div>
               ) : (
@@ -189,7 +196,7 @@ export default function Plot() {
                     onClick={() => setCurrentPhase('selection')}
                     className="w-full px-4 py-2 bg-white border border-slate-300 text-slate-800 rounded-full shadow-lg hover:bg-slate-100 transition-all duration-300"
                   >
-                    Back to Selection
+                    {t('plot.backToSelection')}
                   </button>
                 </div>
               )}
@@ -197,7 +204,7 @@ export default function Plot() {
               {/* Itinerary List */}
               {currentPhase === 'ordering' && (
                 <div className="mb-6">
-                  <h2 className="text-xl font-semibold mb-4 text-slate-800">Your Itinerary</h2>
+                  <h2 className="text-xl font-semibold mb-4 text-slate-800">{t('plot.yourItineraryList')}</h2>
                   <div className="space-y-3">
                     {orderedPois
                       .sort((a, b) => a.order - b.order)
@@ -237,16 +244,16 @@ export default function Plot() {
               {/* Route Creation */}
               {currentPhase === 'ordering' && (
                 <div>
-                  <h2 className="text-xl font-semibold mb-4 text-slate-800">Add Route</h2>
+                  <h2 className="text-xl font-semibold mb-4 text-slate-800">{t('plot.addRoute')}</h2>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">From</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">{t('plot.from')}</label>
                       <select
                         value={selectedFromPoiId || ''}
                         onChange={(e) => setSelectedFromPoiId(e.target.value || null)}
                         className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
                       >
-                        <option value="">Select a POI</option>
+                        <option value="">{t('plot.selectPOI')}</option>
                         {selectedPoiIds.map((poiId) => {
                           const poi = getCanvasPoi(poiId);
                           return poi ? <option key={poiId} value={poiId}>{poi.name}</option> : null;
@@ -255,13 +262,13 @@ export default function Plot() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">To</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">{t('plot.to')}</label>
                       <select
                         value={selectedToPoiId || ''}
                         onChange={(e) => setSelectedToPoiId(e.target.value || null)}
                         className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
                       >
-                        <option value="">Select a POI</option>
+                        <option value="">{t('plot.selectPOI')}</option>
                         {selectedPoiIds.map((poiId) => {
                           const poi = getCanvasPoi(poiId);
                           return poi ? <option key={poiId} value={poiId}>{poi.name}</option> : null;
@@ -270,28 +277,28 @@ export default function Plot() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Transportation</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">{t('plot.transportation')}</label>
                       <select
                         value={transportation}
                         onChange={(e) => setTransportation(e.target.value as TransportationType)}
                         className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
                       >
-                        <option value="walk">Walk</option>
-                        <option value="bus">Bus</option>
-                        <option value="taxi">Taxi</option>
-                        <option value="train">Train</option>
-                        <option value="car">Car</option>
-                        <option value="bike">Bike</option>
+                        <option value="walk">{t('transport.walk')}</option>
+                        <option value="bus">{t('transport.bus')}</option>
+                        <option value="taxi">{t('transport.taxi')}</option>
+                        <option value="train">{t('transport.train')}</option>
+                        <option value="car">{t('transport.car')}</option>
+                        <option value="bike">{t('transport.bike')}</option>
                       </select>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Duration</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">{t('plot.duration')}</label>
                       <input
                         type="text"
                         value={duration}
                         onChange={(e) => setDuration(e.target.value)}
-                        placeholder="e.g., '15 min'"
+                        placeholder={t('plot.durationPlaceholder')}
                         className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
                       />
                     </div>
@@ -303,7 +310,7 @@ export default function Plot() {
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                         : 'bg-slate-800 text-white hover:bg-slate-700 hover:shadow-xl'}`}
                     >
-                      Add Route
+                      {t('plot.addRouteButton')}
                     </button>
                   </div>
                 </div>

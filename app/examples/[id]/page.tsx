@@ -20,49 +20,56 @@ const exampleBooks: TravelBook[] = [
         name: "Eiffel Tower",
         category: "sightseeing",
         visitTime: "2 hours",
-        notes: "Iconic landmark with stunning views"
+        notes: "Iconic landmark with stunning views",
+        createdAt: "2023-05-30T09:00:00.000Z"
       },
       {
         id: "poi-2",
         name: "Louvre Museum",
         category: "sightseeing",
         visitTime: "3 hours",
-        notes: "World's largest art museum"
+        notes: "World's largest art museum",
+        createdAt: "2023-05-30T10:00:00.000Z"
       },
       {
         id: "poi-3",
         name: "Colosseum",
         category: "sightseeing",
         visitTime: "2 hours",
-        notes: "Ancient Roman amphitheater"
+        notes: "Ancient Roman amphitheater",
+        createdAt: "2023-05-31T14:00:00.000Z"
       },
       {
         id: "poi-4",
         name: "Pisa Tower",
         category: "sightseeing",
         visitTime: "1 hour",
-        notes: "Famous leaning tower"
+        notes: "Famous leaning tower",
+        createdAt: "2023-06-01T10:00:00.000Z"
       },
       {
         id: "poi-5",
         name: "Rialto Bridge",
         category: "sightseeing",
         visitTime: "1 hour",
-        notes: "Beautiful bridge in Venice"
+        notes: "Beautiful bridge in Venice",
+        createdAt: "2023-06-02T15:00:00.000Z"
       },
       {
         id: "poi-6",
         name: "Le Grand Paris Hotel",
         category: "accommodation",
         visitTime: "Overnight",
-        notes: "Luxury hotel with excellent service"
+        notes: "Luxury hotel with excellent service",
+        createdAt: "2023-05-29T18:00:00.000Z"
       },
       {
         id: "poi-7",
         name: "Trattoria Da Luigi",
         category: "food",
         visitTime: "1.5 hours",
-        notes: "Authentic Italian cuisine"
+        notes: "Authentic Italian cuisine",
+        createdAt: "2023-05-30T19:00:00.000Z"
       }
     ],
     canvasPois: [
@@ -73,7 +80,8 @@ const exampleBooks: TravelBook[] = [
         visitTime: "2 hours",
         x: 150,
         y: 100,
-        notes: "Iconic landmark with stunning views"
+        notes: "Iconic landmark with stunning views",
+        createdAt: "2023-05-30T09:00:00.000Z"
       },
       {
         id: "canvas-poi-2",
@@ -82,7 +90,8 @@ const exampleBooks: TravelBook[] = [
         visitTime: "3 hours",
         x: 400,
         y: 200,
-        notes: "World's largest art museum"
+        notes: "World's largest art museum",
+        createdAt: "2023-05-30T10:00:00.000Z"
       },
       {
         id: "canvas-poi-3",
@@ -91,7 +100,8 @@ const exampleBooks: TravelBook[] = [
         visitTime: "2 hours",
         x: 600,
         y: 350,
-        notes: "Ancient Roman amphitheater"
+        notes: "Ancient Roman amphitheater",
+        createdAt: "2023-05-31T14:00:00.000Z"
       }
     ],
     dailyItineraries: [
@@ -158,42 +168,48 @@ const exampleBooks: TravelBook[] = [
         name: "Taj Mahal",
         category: "sightseeing",
         visitTime: "2 hours",
-        notes: "Beautiful mausoleum in white marble"
+        notes: "Beautiful mausoleum in white marble",
+        createdAt: "2023-09-12T10:00:00.000Z"
       },
       {
         id: "poi-9",
         name: "Great Wall of China",
         category: "sightseeing",
         visitTime: "3 hours",
-        notes: "Ancient defensive structure"
+        notes: "Ancient defensive structure",
+        createdAt: "2023-09-15T11:00:00.000Z"
       },
       {
         id: "poi-10",
         name: "Tokyo Tower",
         category: "sightseeing",
         visitTime: "1.5 hours",
-        notes: "Communication and observation tower"
+        notes: "Communication and observation tower",
+        createdAt: "2023-09-20T09:00:00.000Z"
       },
       {
         id: "poi-11",
         name: "Bangkok Grand Palace",
         category: "sightseeing",
         visitTime: "2 hours",
-        notes: "Official residence of the King of Thailand"
+        notes: "Official residence of the King of Thailand",
+        createdAt: "2023-09-25T14:00:00.000Z"
       },
       {
         id: "poi-12",
         name: "Hotel Grand Tokyo",
         category: "accommodation",
         visitTime: "Overnight",
-        notes: "Modern hotel in the heart of Tokyo"
+        notes: "Modern hotel in the heart of Tokyo",
+        createdAt: "2023-09-19T18:00:00.000Z"
       },
       {
         id: "poi-13",
         name: "Sushi Bar Yohei",
         category: "food",
         visitTime: "1 hour",
-        notes: "Authentic Japanese sushi"
+        notes: "Authentic Japanese sushi",
+        createdAt: "2023-09-20T20:00:00.000Z"
       }
     ],
     canvasPois: [
@@ -204,7 +220,8 @@ const exampleBooks: TravelBook[] = [
         visitTime: "2 hours",
         x: 200,
         y: 150,
-        notes: "Beautiful mausoleum in white marble"
+        notes: "Beautiful mausoleum in white marble",
+        createdAt: "2023-09-12T10:00:00.000Z"
       },
       {
         id: "canvas-poi-5",
@@ -213,7 +230,8 @@ const exampleBooks: TravelBook[] = [
         visitTime: "3 hours",
         x: 500,
         y: 250,
-        notes: "Ancient defensive structure"
+        notes: "Ancient defensive structure",
+        createdAt: "2023-09-15T11:00:00.000Z"
       }
     ],
     dailyItineraries: [
@@ -258,42 +276,48 @@ const exampleBooks: TravelBook[] = [
         name: "Grand Canyon",
         category: "sightseeing",
         visitTime: "4 hours",
-        notes: "Breathtaking natural wonder"
+        notes: "Breathtaking natural wonder",
+        createdAt: "2023-07-05T09:00:00.000Z"
       },
       {
         id: "poi-15",
         name: "Las Vegas Strip",
         category: "entertainment",
         visitTime: "2 hours",
-        notes: "Famous resort city"
+        notes: "Famous resort city",
+        createdAt: "2023-07-10T21:00:00.000Z"
       },
       {
         id: "poi-16",
         name: "Golden Gate Bridge",
         category: "sightseeing",
         visitTime: "1 hour",
-        notes: "Iconic suspension bridge"
+        notes: "Iconic suspension bridge",
+        createdAt: "2023-07-15T14:00:00.000Z"
       },
       {
         id: "poi-17",
         name: "Hollywood Sign",
         category: "sightseeing",
         visitTime: "1 hour",
-        notes: "Symbol of the American film industry"
+        notes: "Symbol of the American film industry",
+        createdAt: "2023-07-18T10:00:00.000Z"
       },
       {
         id: "poi-18",
         name: "Motel 6 Grand Canyon",
         category: "accommodation",
         visitTime: "Overnight",
-        notes: "Affordable lodging near the canyon"
+        notes: "Affordable lodging near the canyon",
+        createdAt: "2023-07-04T18:00:00.000Z"
       },
       {
         id: "poi-19",
         name: "In-N-Out Burger",
         category: "food",
         visitTime: "30 minutes",
-        notes: "Famous fast food chain"
+        notes: "Famous fast food chain",
+        createdAt: "2023-07-15T17:00:00.000Z"
       }
     ],
     canvasPois: [
@@ -304,7 +328,8 @@ const exampleBooks: TravelBook[] = [
         visitTime: "4 hours",
         x: 300,
         y: 200,
-        notes: "Breathtaking natural wonder"
+        notes: "Breathtaking natural wonder",
+        createdAt: "2023-07-05T09:00:00.000Z"
       },
       {
         id: "canvas-poi-7",
@@ -313,7 +338,8 @@ const exampleBooks: TravelBook[] = [
         visitTime: "1 hour",
         x: 550,
         y: 150,
-        notes: "Iconic suspension bridge"
+        notes: "Iconic suspension bridge",
+        createdAt: "2023-07-15T14:00:00.000Z"
       }
     ],
     dailyItineraries: [
@@ -372,35 +398,40 @@ const exampleBooks: TravelBook[] = [
         name: "Serengeti National Park",
         category: "sightseeing",
         visitTime: "Full day",
-        notes: "Famous wildlife reserve"
+        notes: "Famous wildlife reserve",
+        createdAt: "2023-11-07T07:00:00.000Z"
       },
       {
         id: "poi-21",
         name: "Ngorongoro Crater",
         category: "sightseeing",
         visitTime: "Half day",
-        notes: "Natural amphitheater with wildlife"
+        notes: "Natural amphitheater with wildlife",
+        createdAt: "2023-11-10T08:00:00.000Z"
       },
       {
         id: "poi-22",
         name: "Maasai Village",
         category: "sightseeing",
         visitTime: "1 hour",
-        notes: "Traditional Maasai community"
+        notes: "Traditional Maasai community",
+        createdAt: "2023-11-10T14:00:00.000Z"
       },
       {
         id: "poi-23",
         name: "Serengeti Safari Lodge",
         category: "accommodation",
         visitTime: "Overnight",
-        notes: "Luxury lodge with wildlife views"
+        notes: "Luxury lodge with wildlife views",
+        createdAt: "2023-11-06T18:00:00.000Z"
       },
       {
         id: "poi-24",
         name: "Boma Dinner",
         category: "food",
         visitTime: "2 hours",
-        notes: "Traditional African dinner with entertainment"
+        notes: "Traditional African dinner with entertainment",
+        createdAt: "2023-11-07T19:00:00.000Z"
       }
     ],
     canvasPois: [
@@ -411,7 +442,8 @@ const exampleBooks: TravelBook[] = [
         visitTime: "Full day",
         x: 250,
         y: 200,
-        notes: "Famous wildlife reserve"
+        notes: "Famous wildlife reserve",
+        createdAt: "2023-11-07T07:00:00.000Z"
       },
       {
         id: "canvas-poi-9",
@@ -420,7 +452,8 @@ const exampleBooks: TravelBook[] = [
         visitTime: "Half day",
         x: 500,
         y: 300,
-        notes: "Natural amphitheater with wildlife"
+        notes: "Natural amphitheater with wildlife",
+        createdAt: "2023-11-10T08:00:00.000Z"
       }
     ],
     dailyItineraries: [

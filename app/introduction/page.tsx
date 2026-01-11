@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTravelBookStore } from "@/stores/travelBookStore";
+import { useLanguageStore } from "@/stores/languageStore";
+import { getTranslation } from "@/utils/i18n";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import FloatingNavbar from "@/components/FloatingNavbar";
 
@@ -20,12 +22,16 @@ interface FormData {
 export default function Introduction() {
   const router = useRouter();
   const { currentBook, updateBook, isDirty, saveBook, resetBook } = useTravelBookStore();
+  const { language } = useLanguageStore();
   
   const [formData, setFormData] = useState<FormData>({ title: currentBook?.title || "", destination: currentBook?.destination || "", companions: currentBook?.companions || "", description: currentBook?.description || "", coverImage: currentBook?.coverImage || null, startDate: currentBook?.startDate || "", endDate: currentBook?.endDate || "" });  
   const [errors, setErrors] = useState<Record<string, string>>({});  
   const [showModal, setShowModal] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
   const [isBookSaved, setIsBookSaved] = useState(false);
+  
+  // 翻译辅助函数
+  const t = (key: string) => getTranslation(key, language);
   
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -102,20 +108,20 @@ export default function Introduction() {
     const newErrors: Record<string, string> = {};
     
     if (!formData.title.trim()) {
-      newErrors.title = "Journey name is required";
+      newErrors.title = t('error.titleRequired');
     }
     
     if (!formData.destination.trim()) {
-      newErrors.destination = "Destination is required";
+      newErrors.destination = t('error.destinationRequired');
     }
     
     if (!formData.startDate) {
-      newErrors.startDate = "Start date is required";
+      newErrors.startDate = t('error.startDateRequired');
     }
     
     // Validate end date only if it's provided
     if (formData.startDate && formData.endDate && new Date(formData.endDate) < new Date(formData.startDate)) {
-      newErrors.endDate = "End date must be after start date";
+      newErrors.endDate = t('error.endDateInvalid');
     }
     
     setErrors(newErrors);
@@ -176,7 +182,7 @@ export default function Introduction() {
       // Check if required fields are filled
       if (!validateFormForSave()) {
         // Show error message for missing required fields
-        alert('Book cannot be saved. Please fill in all required fields: Journey Name, Destination, and Start Date.');
+        alert(t('error.saveRequiredFields'));
         return;
       }
       setShowModal(true);
@@ -224,9 +230,9 @@ export default function Introduction() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-5xl font-bold mb-2 text-slate-800 font-[family-name:var(--font-playfair-display)]">Introduction</h1>
+          <h1 className="text-5xl font-bold mb-2 text-slate-800 font-[family-name:var(--font-playfair-display)]">{t('introduction.title')}</h1>
           <p className="text-xl text-slate-600 leading-relaxed">
-            Define your journey
+            {t('introduction.subtitle')}
           </p>
         </motion.header>
         
@@ -241,7 +247,7 @@ export default function Introduction() {
             {/* Journey Name */}
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-slate-700 mb-2">
-                Journey Name
+                {t('introduction.journeyName')}
               </label>
               <input
                 type="text"
@@ -258,7 +264,7 @@ export default function Introduction() {
             {/* Destination */}
             <div>
               <label htmlFor="destination" className="block text-sm font-medium text-slate-700 mb-2">
-                Destination
+                {t('introduction.destination')}
               </label>
               <input
                 type="text"
@@ -275,7 +281,7 @@ export default function Introduction() {
             {/* Travel Companions */}
             <div>
               <label htmlFor="companions" className="block text-sm font-medium text-slate-700 mb-2">
-                Travel Companions (Optional)
+                {t('introduction.companions')}
               </label>
               <input
                 type="text"
@@ -291,7 +297,7 @@ export default function Introduction() {
             {/* Description */}
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-2">
-                Journey Description (Optional)
+                {t('introduction.description')}
               </label>
               <textarea
                 id="description"
@@ -307,7 +313,7 @@ export default function Introduction() {
             {/* Cover Image */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Journey Cover Image (Optional)
+                {t('introduction.coverImage')}
               </label>
               <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-slate-400 transition-colors cursor-pointer">
                 <input
@@ -326,13 +332,13 @@ export default function Introduction() {
                         className="max-h-48 mx-auto rounded-lg object-cover"
                       />
                       <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                        <span className="text-white font-medium">Change Image</span>
-                      </div>
+                      <span className="text-white font-medium">{t('introduction.changeImage')}</span>
+                    </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center">
                       <span className="text-4xl mb-2">🖼️</span>
-                      <span className="text-slate-600">Click to upload cover image</span>
+                      <span className="text-slate-600">{t('introduction.uploadImage')}</span>
                       <span className="text-xs text-slate-500 mt-1">PNG, JPG, or GIF (Max 5MB)</span>
                     </div>
                   )}
@@ -344,7 +350,7 @@ export default function Introduction() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="startDate" className="block text-sm font-medium text-slate-700 mb-2">
-                  Start Date
+                  {t('introduction.startDate')}
                 </label>
                 <input
                   type="date"
@@ -359,7 +365,7 @@ export default function Introduction() {
               
               <div>
                 <label htmlFor="endDate" className="block text-sm font-medium text-slate-700 mb-2">
-                  End Date
+                  {t('introduction.endDate')}
                 </label>
                 <input
                   type="date"
@@ -380,7 +386,7 @@ export default function Introduction() {
                 onClick={handleBackToLibrary}
                 className="px-6 py-2.5 bg-white/80 backdrop-blur-sm text-slate-700 border border-slate-300 rounded-full shadow-lg hover:bg-white hover:shadow-xl transition-all duration-300"
               >
-                Back to Library
+                {t('introduction.backToLibrary')}
               </button>
               
               <button
@@ -389,7 +395,7 @@ export default function Introduction() {
                 disabled={!isFormValid}
                 className={`px-6 py-2.5 rounded-full shadow-lg transition-all duration-300 ${isFormValid ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl' : 'bg-gray-400 text-gray-200 cursor-not-allowed'}`}
               >
-                Save Book
+                {t('introduction.saveBook')}
               </button>
               
               <button
@@ -397,7 +403,7 @@ export default function Introduction() {
                 disabled={!isBookSaved}
                 className={`px-6 py-2.5 rounded-full shadow-lg transition-all duration-300 ${isBookSaved ? 'bg-slate-800 text-white hover:bg-slate-700 hover:shadow-xl' : 'bg-gray-400 text-gray-200 cursor-not-allowed'}`}
               >
-                Continue to Chapter 1
+                {t('introduction.continueToChapter1')}
               </button>
             </div>
           </form>
@@ -408,17 +414,17 @@ export default function Introduction() {
           isOpen={showModal}
           onClose={handleCancel}
           onConfirm={handleSaveAndExit}
-          title="You have unsaved changes"
-          message="What would you like to do with your unsaved changes?"
-          confirmText="Save & Exit"
-          cancelText="Cancel"
+          title={t('introduction.unsavedChanges')}
+          message={t('introduction.unsavedMessage')}
+          confirmText={t('introduction.saveAndExit')}
+          cancelText={t('button.cancel')}
         >
           {/* Additional button for Discard Changes */}
           <button
             onClick={handleDiscardChanges}
             className="absolute bottom-6 left-6 px-4 py-2 bg-gray-200/80 backdrop-blur-sm text-slate-700 rounded-full shadow-lg hover:bg-gray-300/80 transition-all duration-300 text-sm"
           >
-            Discard Changes
+            {t('introduction.discardChanges')}
           </button>
         </ConfirmationModal>
       </div>

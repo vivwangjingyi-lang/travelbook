@@ -6,13 +6,14 @@
 
 TravelBook is an elegant travel planning application that helps users create, manage, and share complete travel stories. Users can plan journeys in chapters, including basic information, transportation arrangements, point of interest collections, route planning, etc., ultimately forming a beautiful travel book.
 
-## Features
+## Key Features
 
 ### 📖 Travel Book Management
 - Create new travel books with basic journey information
 - Save and edit travel details across multiple sessions
 - Delete unwanted travel books
 - View all travel books in a beautiful library interface
+- Multi-language support (English and Chinese)
 
 ### 🗺️ Journey Planning Workflow
 
@@ -30,6 +31,7 @@ TravelBook is an elegant travel planning application that helps users create, ma
 - Collect and categorize points of interest (POIs)
 - Organize POIs by categories (accommodation, sightseeing, food, etc.)
 - Add visit times and notes for each POI
+- Search, filter, and sort POIs
 
 #### Chapter 3: Canvas
 - Visualize POIs on an interactive canvas
@@ -39,13 +41,13 @@ TravelBook is an elegant travel planning application that helps users create, ma
 #### Chapter 4: Plot
 - Plan daily itineraries
 - Order POIs for each day
-- Define routes between POIs with transportation details
-- Calculate travel times and distances
+- Define routes between POIs with transportation details (walk, bus, taxi, train, car, bike)
 
 #### Chapter 5: Epilogue
-- Generate journey summaries
+- Generate personalized journey summaries
 - Review daily schedules and transportation routes
-- Add and manage travel memos
+- Add and manage travel memos (create, edit, delete, pin)
+- Share and export travel books (copy link, export PDF, share)
 
 ### 🎨 User Experience
 - Beautiful glassmorphism design with floating navigation
@@ -58,6 +60,36 @@ TravelBook is an elegant travel planning application that helps users create, ma
 - IndexedDB for large storage capacity (50MB+)
 - Fallback to localStorage for backward compatibility
 - Automatic data persistence
+
+## Technology Stack
+
+- **Next.js 16.1.1** - React framework for production
+- **React 19.2.3** - UI library
+- **TypeScript** - Type-safe JavaScript
+- **Zustand 5.0.9** - Lightweight state management
+- **Framer Motion** - Animation library
+- **Tailwind CSS** - Utility-first CSS framework
+- **IndexedDB** - Browser storage solution
+- **LocalStorage** - Fallback storage mechanism
+
+## Project Structure
+
+```
+travelbook/
+├── app/
+│   ├── introduction/       # Chapter 0: Journey basic info
+│   ├── departure/          # Chapter 1: Transportation
+│   ├── collection/         # Chapter 2: POI collection
+│   ├── canvas/             # Chapter 3: Visual canvas
+│   ├── plot/               # Chapter 4: Itinerary planning
+│   ├── epilogue/           # Chapter 5: Journey summary
+│   ├── library/            # Travel book library
+│   └── page.tsx            # Home page
+├── components/             # Reusable UI components
+├── stores/                 # Zustand state management
+├── utils/                  # Utility functions (i18n, storage)
+└── public/                 # Static assets
+```
 
 ## Getting Started
 
@@ -97,34 +129,23 @@ npm run build
 yarn build
 ```
 
-## Technology Stack
+## Usage
 
-- **Next.js 16.1.1** - React framework for production
-- **React 19.2.3** - UI library
-- **TypeScript** - Type-safe JavaScript
-- **Zustand 5.0.9** - Lightweight state management
-- **Framer Motion** - Animation library
-- **Tailwind CSS** - Utility-first CSS framework
-- **IndexedDB** - Browser storage solution
-- **LocalStorage** - Fallback storage mechanism
+### Creating a New Travel Book
+1. Click "Create New Book" on the home page
+2. Fill in the required fields on the Introduction page
+3. Save the book before continuing to other chapters
 
-## Project Structure
+### Planning Your Journey
+1. Navigate through the chapters using the floating navbar
+2. Fill in transportation, POIs, and daily itineraries
+3. Visualize your journey on the Canvas page
+4. Plan your daily schedule on the Plot page
 
-```
-travelbook/
-├── app/
-│   ├── introduction/       # Chapter 0: Journey basic info
-│   ├── departure/          # Chapter 1: Transportation
-│   ├── collection/         # Chapter 2: POI collection
-│   ├── canvas/             # Chapter 3: Visual canvas
-│   ├── plot/               # Chapter 4: Itinerary planning
-│   ├── epilogue/           # Chapter 5: Journey summary
-│   └── page.tsx            # Home page (Library)
-├── components/             # Reusable UI components
-├── stores/                 # Zustand state management
-├── utils/                  # Utility functions
-└── public/                 # Static assets
-```
+### Managing Your Travel Books
+1. Return to the library to access all your travel books
+2. Continue editing anytime
+3. Delete unwanted travel books with confirmation
 
 ## Key Components
 
@@ -139,26 +160,15 @@ travelbook/
 - Drag and drop functionality
 - Visual feedback for user interactions
 
-### ConfirmationModal
-- Reusable modal for user confirmations
-- Used for unsaved changes, deletion confirmations, etc.
+### POI Management
+- Add, edit, delete, and categorize points of interest
+- Search and filter functionality
+- Visual representation on canvas
 
-## Usage
-
-1. **Create a New Journey**
-   - Click "Draft New Journey" on the home page
-   - Fill in the required fields on the Introduction page
-   - Save the book before continuing to other chapters
-
-2. **Plan Your Journey**
-   - Navigate through the chapters using the floating navbar
-   - Fill in transportation, POIs, and daily itineraries
-   - Visualize your journey on the Canvas page
-
-3. **Save and Manage**
-   - Your progress is automatically saved
-   - Return to the library to access all your travel books
-   - Continue editing anytime
+### Memo System
+- Create and manage travel memos
+- Pin important memos for quick access
+- Search and filter memos
 
 ## License
 
@@ -174,4 +184,4 @@ See `Roadmap.md` for planned features and improvements.
 
 ---
 
-*Last Updated: 2026-01-10*
+*Last Updated: 2026-01-12*

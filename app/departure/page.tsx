@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import FloatingNavbar from "@/components/FloatingNavbar";
 import { useTravelBookStore } from "@/stores/travelBookStore";
+import { useLanguageStore } from "@/stores/languageStore";
+import { getTranslation } from "@/utils/i18n";
 
 type TransportationType = 'flight' | 'train' | 'bus' | 'car' | 'other';
 
@@ -27,6 +29,10 @@ interface TransportationTicket {
 export default function Departure() {
   const router = useRouter();
   const { currentBook, updateBook } = useTravelBookStore();
+  const { language } = useLanguageStore();
+  
+  // 翻译辅助函数
+  const t = (key: string) => getTranslation(key, language);
   
   // Use transportation tickets from current book or initialize empty array
   const [tickets, setTickets] = useState<TransportationTicket[]>(() => {
@@ -115,8 +121,8 @@ export default function Departure() {
       <div className="max-w-4xl mx-auto pt-24">
         {/* Header */}
         <header className="mb-8 text-center">
-          <h1 className="text-4xl font-bold mb-2 text-slate-800 font-[family-name:var(--font-playfair-display)]">Chapter I: Departure</h1>
-          <p className="text-lg text-slate-600 leading-relaxed">Transportation Details</p>
+          <h1 className="text-4xl font-bold mb-2 text-slate-800 font-[family-name:var(--font-playfair-display)]">{t('departure.title')}</h1>
+          <p className="text-lg text-slate-600 leading-relaxed">{t('departure.subtitle')}</p>
         </header>
 
         {/* Main Content */}
@@ -127,7 +133,7 @@ export default function Departure() {
               onClick={() => setShowAddModal(true)}
               className="px-6 py-2 bg-slate-800 text-white rounded-full shadow-lg hover:bg-slate-700 hover:shadow-xl transition-all duration-300"
             >
-              Add Transportation
+              {t('departure.addTransportation')}
             </button>
           </div>
           
@@ -135,8 +141,8 @@ export default function Departure() {
           {tickets.length === 0 ? (
             <div className="text-center py-12">
               <span className="text-4xl mb-4 block">✈️</span>
-              <h3 className="text-xl font-semibold mb-2 text-slate-800">No Transportation Added Yet</h3>
-              <p className="text-slate-600">Add your flight, train, or other travel tickets using the button above.</p>
+              <h3 className="text-xl font-semibold mb-2 text-slate-800">{t('departure.noTransportation')}</h3>
+              <p className="text-slate-600">{t('departure.addTransportationHint')}</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -162,14 +168,14 @@ export default function Departure() {
                           {ticket.provider} - {ticket.ticketNumber}
                         </h3>
                         <div className="text-sm text-slate-500">
-                          {ticket.type.charAt(0).toUpperCase() + ticket.type.slice(1)}
+                          {t(`transport.${ticket.type}`)}
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={() => handleDeleteTicket(ticket.id)}
                       className="text-red-500 hover:text-red-700 transition-colors"
-                      title="Delete ticket"
+                      title={t('departure.deleteTicket')}
                     >
                       ✕
                     </button>
@@ -177,7 +183,7 @@ export default function Departure() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm font-medium text-slate-600 mb-1">Departure</div>
+                      <div className="text-sm font-medium text-slate-600 mb-1">{t('departure.departureLocation')}</div>
                       <div className="text-slate-800 font-medium">{ticket.departureLocation}</div>
                       <div className="text-sm text-slate-500">
                         {ticket.departureDate} {ticket.departureTime}
@@ -185,7 +191,7 @@ export default function Departure() {
                     </div>
                     
                     <div>
-                      <div className="text-sm font-medium text-slate-600 mb-1">Arrival</div>
+                      <div className="text-sm font-medium text-slate-600 mb-1">{t('departure.arrivalLocation')}</div>
                       <div className="text-slate-800 font-medium">{ticket.arrivalLocation}</div>
                       <div className="text-sm text-slate-500">
                         {ticket.arrivalDate} {ticket.arrivalTime}
@@ -193,19 +199,19 @@ export default function Departure() {
                     </div>
                     
                     <div>
-                      <div className="text-sm font-medium text-slate-600 mb-1">Class</div>
+                      <div className="text-sm font-medium text-slate-600 mb-1">{t('departure.class')}</div>
                       <div className="text-slate-800">{ticket.class}</div>
                     </div>
                     
                     <div>
-                      <div className="text-sm font-medium text-slate-600 mb-1">Price</div>
+                      <div className="text-sm font-medium text-slate-600 mb-1">{t('departure.price')}</div>
                       <div className="text-slate-800">{ticket.price}</div>
                     </div>
                   </div>
                   
                   {ticket.notes && (
                     <div className="mt-4">
-                      <div className="text-sm font-medium text-slate-600 mb-1">Notes</div>
+                      <div className="text-sm font-medium text-slate-600 mb-1">{t('departure.notes')}</div>
                       <div className="text-sm text-slate-700 bg-slate-50 p-3 rounded">{ticket.notes}</div>
                     </div>
                   )}
@@ -221,7 +227,7 @@ export default function Departure() {
               onClick={() => router.push('/introduction')}
               className="px-6 py-2 bg-white/80 backdrop-blur-sm text-slate-700 rounded-full shadow-lg hover:bg-white hover:shadow-xl transition-all duration-300"
             >
-              Back to Introduction
+              {t('departure.backToIntroduction')}
             </button>
             
             <button
@@ -229,7 +235,7 @@ export default function Departure() {
               onClick={handleContinue}
               className="px-6 py-2 bg-slate-800 text-white rounded-full shadow-lg hover:bg-slate-700 hover:shadow-xl transition-all duration-300"
             >
-              Continue to Chapter 2
+              {t('departure.continueToChapter2')}
             </button>
           </div>
         </main>
@@ -244,7 +250,7 @@ export default function Departure() {
             >
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-semibold text-slate-800 font-[family-name:var(--font-playfair-display)]">
-                  Add Transportation Ticket
+                  {t('departure.addTicketModal')}
                 </h3>
                 <button
                   onClick={() => setShowAddModal(false)}
@@ -257,7 +263,7 @@ export default function Departure() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Transportation Type
+                    {t('departure.transportationType')}
                   </label>
                   <select
                     name="type"
@@ -265,17 +271,17 @@ export default function Departure() {
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
                   >
-                    <option value="flight">✈️ Flight</option>
-                    <option value="train">🚄 Train</option>
-                    <option value="bus">🚌 Bus</option>
-                    <option value="car">🚗 Car</option>
-                    <option value="other">📋 Other</option>
+                    <option value="flight">✈️ {t('transport.flight')}</option>
+                    <option value="train">🚄 {t('transport.train')}</option>
+                    <option value="bus">🚌 {t('transport.bus')}</option>
+                    <option value="car">🚗 {t('transport.car')}</option>
+                    <option value="other">📋 {t('transport.other')}</option>
                   </select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Provider
+                    {t('departure.provider')}
                   </label>
                   <input
                     type="text"
@@ -289,7 +295,7 @@ export default function Departure() {
                 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Ticket Number
+                    {t('departure.ticketNumber')}
                   </label>
                   <input
                     type="text"
@@ -303,7 +309,7 @@ export default function Departure() {
                 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Class
+                    {t('departure.class')}
                   </label>
                   <input
                     type="text"
@@ -317,7 +323,7 @@ export default function Departure() {
                 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Departure Location
+                    {t('departure.departureLocation')}
                   </label>
                   <input
                     type="text"
@@ -331,7 +337,7 @@ export default function Departure() {
                 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Arrival Location
+                    {t('departure.arrivalLocation')}
                   </label>
                   <input
                     type="text"
@@ -346,7 +352,7 @@ export default function Departure() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Departure Date
+                      {t('departure.departureDate')}
                     </label>
                     <input
                       type="date"
@@ -359,7 +365,7 @@ export default function Departure() {
                   
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Departure Time
+                      {t('departure.departureTime')}
                     </label>
                     <input
                       type="time"
@@ -374,7 +380,7 @@ export default function Departure() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Arrival Date
+                      {t('departure.arrivalDate')}
                     </label>
                     <input
                       type="date"
@@ -387,7 +393,7 @@ export default function Departure() {
                   
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Arrival Time
+                      {t('departure.arrivalTime')}
                     </label>
                     <input
                       type="time"
@@ -401,7 +407,7 @@ export default function Departure() {
                 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Price
+                    {t('departure.price')}
                   </label>
                   <input
                     type="text"
@@ -416,7 +422,7 @@ export default function Departure() {
               
               <div className="mt-6">
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Notes (Optional)
+                  {t('departure.notes')}
                 </label>
                 <textarea
                   name="notes"
@@ -433,13 +439,13 @@ export default function Departure() {
                   onClick={() => setShowAddModal(false)}
                   className="px-6 py-3 bg-white/80 backdrop-blur-sm border border-slate-300 rounded-full shadow-lg hover:bg-white hover:shadow-xl transition-all duration-300 text-slate-800"
                 >
-                  Cancel
+                  {t('button.cancel')}
                 </button>
                 <button
                   onClick={handleAddTicket}
                   className="px-6 py-3 bg-slate-800 text-white rounded-full shadow-lg hover:bg-slate-700 hover:shadow-xl transition-all duration-300"
                 >
-                  Add Ticket
+                  {t('departure.addTicket')}
                 </button>
               </div>
             </motion.div>

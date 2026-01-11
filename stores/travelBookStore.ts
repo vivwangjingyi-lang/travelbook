@@ -12,6 +12,7 @@ export interface POI {
   category: POICategory;
   visitTime: string;
   notes?: string;
+  createdAt: string;
 }
 
 export interface CanvasPOI extends POI {
@@ -116,49 +117,57 @@ const createInitialTestData = (): TravelBook => {
       id: 'poi-1',
       name: 'Eiffel Tower',
       category: 'sightseeing',
-      visitTime: '2 hours'
+      visitTime: '2 hours',
+      createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString()
     },
     {
       id: 'poi-2',
       name: 'Louvre Museum',
       category: 'sightseeing',
-      visitTime: '3 hours'
+      visitTime: '3 hours',
+      createdAt: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString()
     },
     {
       id: 'poi-3',
       name: 'Notre-Dame Cathedral',
       category: 'sightseeing',
-      visitTime: '1.5 hours'
+      visitTime: '1.5 hours',
+      createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
     },
     {
       id: 'poi-4',
       name: 'Montmartre',
       category: 'sightseeing',
-      visitTime: '2 hours'
+      visitTime: '2 hours',
+      createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
     },
     {
       id: 'poi-5',
       name: 'Le Grand Paris Hotel',
       category: 'accommodation',
-      visitTime: 'Overnight'
+      visitTime: 'Overnight',
+      createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
     },
     {
       id: 'poi-6',
       name: 'Café de Flore',
       category: 'food',
-      visitTime: '1 hour'
+      visitTime: '1 hour',
+      createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
     },
     {
       id: 'poi-7',
       name: 'Champs-Élysées',
       category: 'shopping',
-      visitTime: '2 hours'
+      visitTime: '2 hours',
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
     },
     {
       id: 'poi-8',
       name: 'Seine River Cruise',
       category: 'entertainment',
-      visitTime: '1.5 hours'
+      visitTime: '1.5 hours',
+      createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
     }
   ];
 
@@ -168,6 +177,7 @@ const createInitialTestData = (): TravelBook => {
       name: 'Eiffel Tower',
       category: 'sightseeing',
       visitTime: '2 hours',
+      createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
       x: 150,
       y: 100
     },
@@ -176,6 +186,7 @@ const createInitialTestData = (): TravelBook => {
       name: 'Louvre Museum',
       category: 'sightseeing',
       visitTime: '3 hours',
+      createdAt: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
       x: 400,
       y: 200
     },
@@ -184,6 +195,7 @@ const createInitialTestData = (): TravelBook => {
       name: 'Le Grand Paris Hotel',
       category: 'accommodation',
       visitTime: 'Overnight',
+      createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
       x: 250,
       y: 350
     },
@@ -192,6 +204,7 @@ const createInitialTestData = (): TravelBook => {
       name: 'Café de Flore',
       category: 'food',
       visitTime: '1 hour',
+      createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
       x: 500,
       y: 150
     },
@@ -200,6 +213,7 @@ const createInitialTestData = (): TravelBook => {
       name: 'Champs-Élysées',
       category: 'shopping',
       visitTime: '2 hours',
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       x: 300,
       y: 250
     }
@@ -366,9 +380,9 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
     } catch (error) {
       console.error('Error loading books:', error);
       set({ 
-        books: [], 
         isLoading: false, 
         error: 'Failed to load travel books' 
+        // 保留现有的books数组，避免在加载失败时丢失数据
       });
     }
   },
@@ -377,7 +391,8 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   addPOI: (poi) => {
     const newPOI: POI = {
       ...poi,
-      id: nanoid()
+      id: nanoid(),
+      createdAt: new Date().toISOString()
     };
     set((state) => ({
       currentBook: state.currentBook
