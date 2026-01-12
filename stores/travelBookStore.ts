@@ -13,11 +13,13 @@ export interface POI {
   visitTime: string;
   notes?: string;
   createdAt: string;
+  parentId?: string;
 }
 
 export interface CanvasPOI extends POI {
   x: number;
   y: number;
+  originalId?: string;
 }
 
 export interface DailyPOI {
@@ -48,6 +50,23 @@ export interface Memo {
   pinned?: boolean;
 }
 
+// 交通票务接口
+export interface TransportationTicket {
+  id: string;
+  type: 'flight' | 'train' | 'bus' | 'car' | 'other';
+  provider: string;
+  ticketNumber: string;
+  departureLocation: string;
+  arrivalLocation: string;
+  departureDate: string;
+  departureTime: string;
+  arrivalDate: string;
+  arrivalTime: string;
+  price: string;
+  class: string;
+  notes?: string;
+}
+
 export interface TravelBook {
   id: string;
   title: string;
@@ -61,6 +80,7 @@ export interface TravelBook {
   canvasPois: CanvasPOI[];
   dailyItineraries: DailyItinerary[];
   memos: Memo[];
+  transportationTickets?: TransportationTicket[];
 }
 
 interface TravelBookState {
@@ -71,38 +91,43 @@ interface TravelBookState {
   isLoading: boolean;
   error: string | null;
   isDirty: boolean;
-  
+
   // Book management
+  initNewBook: () => void;
+  /** @deprecated 使用 initNewBook() + saveBook() 代替 */
   createBook: (title: string, description: string, startDate: string, endDate: string) => void;
+  // 错误处理
+  setError: (error: string | null) => void;
+  clearError: () => void;
   selectBook: (bookId: string) => void;
   updateBook: (book: Partial<TravelBook>) => void;
   deleteBook: (bookId: string) => void;
   saveBook: () => void;
   resetBook: () => void;
   loadBooks: () => void;
-  
+
   // POI management
   addPOI: (poi: Omit<POI, 'id'>) => void;
   updatePOI: (poiId: string, poi: Partial<POI>) => void;
   deletePOI: (poiId: string) => void;
-  
+
   // Canvas POI management
   addCanvasPOI: (poi: Omit<CanvasPOI, 'id'>) => void;
   updateCanvasPOI: (poiId: string, poi: Partial<CanvasPOI>) => void;
   deleteCanvasPOI: (poiId: string) => void;
-  
+
   // Daily itinerary management
   setCurrentDay: (day: number) => void;
   getDailyItinerary: (day: number) => DailyItinerary | undefined;
   ensureDailyItinerary: (day: number) => void;
   togglePoiSelection: (day: number, poiId: string) => void;
   reorderDailyPois: (day: number, orderedPois: DailyPOI[]) => void;
-  
+
   // Route management
   addRoute: (day: number, route: Omit<Route, 'id'>) => void;
   updateRoute: (day: number, routeId: string, route: Partial<Route>) => void;
   deleteRoute: (day: number, routeId: string) => void;
-  
+
   // Memo management
   addMemo: (title: string, content: string) => void;
   updateMemo: (memoId: string, title: string, content: string) => void;
@@ -275,6 +300,37 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   isDirty: false,
 
   // Book management
+  // 错误处理方法
+  setError: (error) => {
+    set({ error });
+  },
+
+  clearError: () => {
+    set({ error: null });
+  },
+
+  initNewBook: () => {
+    const newBook: TravelBook = {
+      id: nanoid(),
+      title: "",
+      description: "",
+      startDate: "",
+      endDate: "",
+      pois: [],
+      canvasPois: [],
+      dailyItineraries: [],
+      memos: [],
+      transportationTickets: []
+    };
+
+    set({
+      currentBook: newBook,
+      currentBookSnapshot: JSON.parse(JSON.stringify(newBook)),
+      isDirty: true // Mark as dirty since it's a new, unsaved book
+    });
+  },
+
+  /** @deprecated 使用 initNewBook() + saveBook() 代替 */
   createBook: (title, description, startDate, endDate) => {
     const newBook: TravelBook = {
       id: nanoid(),
@@ -285,16 +341,17 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       pois: [],
       canvasPois: [],
       dailyItineraries: [],
-      memos: []
+      memos: [],
+      transportationTickets: []
     };
-    
+
     const updatedBooks = [...get().books, newBook];
-    
+
     // Save asynchronously
     saveToStorage(updatedBooks).catch(error => {
       console.error('Error saving new book:', error);
     });
-    
+
     set({
       books: updatedBooks,
       currentBook: newBook,
@@ -317,9 +374,9 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   updateBook: (book) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       const updatedCurrentBook = { ...state.currentBook, ...book };
-      
+
       return {
         currentBook: updatedCurrentBook,
         isDirty: true
@@ -329,12 +386,12 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
   deleteBook: (bookId) => {
     const updatedBooks = get().books.filter(b => b.id !== bookId);
-    
+
     // Save asynchronously
     saveToStorage(updatedBooks).catch(error => {
       console.error('Error deleting book:', error);
     });
-    
+
     set((state) => ({
       books: updatedBooks,
       currentBook: state.currentBook?.id === bookId ? null : state.currentBook,
@@ -346,16 +403,23 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   saveBook: () => {
     set((state) => {
       if (!state.currentBook) return state;
-      
-      const updatedBooks = state.books.map(b => 
-        b.id === state.currentBook!.id ? state.currentBook! : b
-      );
-      
+
+      const isNewBook = !state.books.some(b => b.id === state.currentBook!.id);
+
+      let updatedBooks;
+      if (isNewBook) {
+        updatedBooks = [...state.books, state.currentBook!];
+      } else {
+        updatedBooks = state.books.map(b =>
+          b.id === state.currentBook!.id ? state.currentBook! : b
+        );
+      }
+
       // Save asynchronously
       saveToStorage(updatedBooks).catch(error => {
         console.error('Error saving book:', error);
       });
-      
+
       return {
         books: updatedBooks,
         currentBookSnapshot: JSON.parse(JSON.stringify(state.currentBook)),
@@ -373,15 +437,15 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
   loadBooks: async () => {
     set({ isLoading: true, error: null });
-    
+
     try {
       const books = await loadFromStorage();
       set({ books, isLoading: false });
     } catch (error) {
       console.error('Error loading books:', error);
-      set({ 
-        isLoading: false, 
-        error: 'Failed to load travel books' 
+      set({
+        isLoading: false,
+        error: 'Failed to load travel books'
         // 保留现有的books数组，避免在加载失败时丢失数据
       });
     }
@@ -406,33 +470,50 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
     set((state) => ({
       currentBook: state.currentBook
         ? {
-            ...state.currentBook,
-            pois: state.currentBook.pois.map((p) =>
-              p.id === poiId ? { ...p, ...poi } : p
-            )
-          }
+          ...state.currentBook,
+          pois: state.currentBook.pois.map((p) =>
+            p.id === poiId ? { ...p, ...poi } : p
+          )
+        }
         : null,
       isDirty: true
     }));
   },
 
   deletePOI: (poiId) => {
-    set((state) => ({
-      currentBook: state.currentBook
-        ? {
-            ...state.currentBook,
-            pois: state.currentBook.pois.filter((p) => p.id !== poiId)
-          }
-        : null,
-      isDirty: true
-    }));
+    set((state) => {
+      if (!state.currentBook) return state;
+
+      // 1. 过滤掉要删除的 POI
+      const updatedPOIs = state.currentBook.pois.filter((p) => p.id !== poiId);
+
+      // 2. 处理下属地点：将原来以该 POI 为父级的点的 parentId 置空
+      const finalPOIs = updatedPOIs.map(p =>
+        p.parentId === poiId ? { ...p, parentId: undefined } : p
+      );
+
+      // 3. 同时也要处理 canvasPois 中的关联
+      const updatedCanvasPois = state.currentBook.canvasPois.map(p =>
+        p.parentId === poiId ? { ...p, parentId: undefined } : p
+      );
+
+      return {
+        currentBook: {
+          ...state.currentBook,
+          pois: finalPOIs,
+          canvasPois: updatedCanvasPois
+        },
+        isDirty: true
+      };
+    });
   },
 
   // Canvas POI management
   addCanvasPOI: (poi) => {
     const newCanvasPOI: CanvasPOI = {
       ...poi,
-      id: nanoid()
+      id: nanoid(),
+      originalId: poi.originalId || (poi as any).id // 优先使用已存在的 originalId，或从传入的 POI 对象中提取 id
     };
     set((state) => ({
       currentBook: state.currentBook
@@ -443,29 +524,70 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   },
 
   updateCanvasPOI: (poiId, poi) => {
-    set((state) => ({
-      currentBook: state.currentBook
-        ? {
-            ...state.currentBook,
-            canvasPois: state.currentBook.canvasPois.map((p) =>
-              p.id === poiId ? { ...p, ...poi } : p
-            )
-          }
-        : null,
-      isDirty: true
-    }));
+    set((state) => {
+      if (!state.currentBook) return state;
+
+      const currentCanvasPois = state.currentBook.canvasPois;
+      const targetPoi = currentCanvasPois.find(p => p.id === poiId);
+
+      if (!targetPoi) return state;
+
+      // 计算偏移量（如果提供了新坐标）
+      const dx = poi.x !== undefined ? poi.x - targetPoi.x : 0;
+      const dy = poi.y !== undefined ? poi.y - targetPoi.y : 0;
+
+      const updatedCanvasPois = currentCanvasPois.map((p) => {
+        // 更新目标 POI
+        if (p.id === poiId) {
+          return { ...p, ...poi };
+        }
+
+        // 如果目标 POI 是当前 POI 的父级，且坐标发生了变化，则同步偏移子级
+        // 注意：在 CanvasPOI 中，parentId 对应的是父节点的 originalId 或 id，需要统一逻辑
+        // 根据 deleteCanvasPOI 的逻辑，parentId 存储的是被删除点的 id
+        if ((dx !== 0 || dy !== 0) && p.parentId === targetPoi.originalId) {
+          return {
+            ...p,
+            x: p.x + dx,
+            y: p.y + dy
+          };
+        }
+
+        return p;
+      });
+
+      return {
+        currentBook: {
+          ...state.currentBook,
+          canvasPois: updatedCanvasPois
+        },
+        isDirty: true
+      };
+    });
   },
 
   deleteCanvasPOI: (poiId) => {
-    set((state) => ({
-      currentBook: state.currentBook
-        ? {
-            ...state.currentBook,
-            canvasPois: state.currentBook.canvasPois.filter((p) => p.id !== poiId)
-          }
-        : null,
-      isDirty: true
-    }));
+    set((state) => {
+      if (!state.currentBook) return state;
+
+      const targetPoi = state.currentBook.canvasPois.find(p => p.id === poiId);
+      if (!targetPoi) return state;
+
+      const filteredCanvasPOIs = state.currentBook.canvasPois.filter((p) => p.id !== poiId);
+
+      // 平级化下属地点：使用 originalId 进行匹配
+      const finalCanvasPOIs = filteredCanvasPOIs.map(p =>
+        (p.parentId && p.parentId === targetPoi.originalId) ? { ...p, parentId: undefined } : p
+      );
+
+      return {
+        currentBook: {
+          ...state.currentBook,
+          canvasPois: finalCanvasPOIs
+        },
+        isDirty: true
+      };
+    });
   },
 
   // Daily itinerary management
@@ -481,20 +603,20 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   ensureDailyItinerary: (day) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       const existingItinerary = state.currentBook.dailyItineraries.find(
         (itinerary) => itinerary.day === day
       );
-      
+
       if (existingItinerary) return state;
-      
+
       const newItinerary: DailyItinerary = {
         day,
         selectedPoiIds: [],
         orderedPois: [],
         routes: []
       };
-      
+
       return {
         currentBook: {
           ...state.currentBook,
@@ -508,12 +630,12 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   togglePoiSelection: (day, poiId) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       const dailyItineraries = [...state.currentBook.dailyItineraries];
       const itineraryIndex = dailyItineraries.findIndex(
         (itinerary) => itinerary.day === day
       );
-      
+
       if (itineraryIndex === -1) {
         // If itinerary doesn't exist, create it
         const newItinerary: DailyItinerary = {
@@ -527,7 +649,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         // Toggle POI selection
         const itinerary = dailyItineraries[itineraryIndex];
         const isSelected = itinerary.selectedPoiIds.includes(poiId);
-        
+
         if (isSelected) {
           // Remove from selection
           itinerary.selectedPoiIds = itinerary.selectedPoiIds.filter(
@@ -545,10 +667,10 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
           // Add to selection
           itinerary.selectedPoiIds.push(poiId);
         }
-        
+
         dailyItineraries[itineraryIndex] = itinerary;
       }
-      
+
       return {
         currentBook: {
           ...state.currentBook,
@@ -562,19 +684,19 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   reorderDailyPois: (day, orderedPois) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       const dailyItineraries = [...state.currentBook.dailyItineraries];
       const itineraryIndex = dailyItineraries.findIndex(
         (itinerary) => itinerary.day === day
       );
-      
+
       if (itineraryIndex === -1) return state;
-      
+
       dailyItineraries[itineraryIndex] = {
         ...dailyItineraries[itineraryIndex],
         orderedPois
       };
-      
+
       return {
         currentBook: {
           ...state.currentBook,
@@ -589,24 +711,24 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   addRoute: (day, route) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       const dailyItineraries = [...state.currentBook.dailyItineraries];
       const itineraryIndex = dailyItineraries.findIndex(
         (itinerary) => itinerary.day === day
       );
-      
+
       if (itineraryIndex === -1) return state;
-      
+
       const newRoute: Route = {
         ...route,
         id: nanoid()
       };
-      
+
       dailyItineraries[itineraryIndex] = {
         ...dailyItineraries[itineraryIndex],
         routes: [...dailyItineraries[itineraryIndex].routes, newRoute]
       };
-      
+
       return {
         currentBook: {
           ...state.currentBook,
@@ -620,21 +742,21 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   updateRoute: (day, routeId, route) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       const dailyItineraries = [...state.currentBook.dailyItineraries];
       const itineraryIndex = dailyItineraries.findIndex(
         (itinerary) => itinerary.day === day
       );
-      
+
       if (itineraryIndex === -1) return state;
-      
+
       dailyItineraries[itineraryIndex] = {
         ...dailyItineraries[itineraryIndex],
         routes: dailyItineraries[itineraryIndex].routes.map((r) =>
           r.id === routeId ? { ...r, ...route } : r
         )
       };
-      
+
       return {
         currentBook: {
           ...state.currentBook,
@@ -648,21 +770,21 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   deleteRoute: (day, routeId) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       const dailyItineraries = [...state.currentBook.dailyItineraries];
       const itineraryIndex = dailyItineraries.findIndex(
         (itinerary) => itinerary.day === day
       );
-      
+
       if (itineraryIndex === -1) return state;
-      
+
       dailyItineraries[itineraryIndex] = {
         ...dailyItineraries[itineraryIndex],
         routes: dailyItineraries[itineraryIndex].routes.filter(
           (r) => r.id !== routeId
         )
       };
-      
+
       return {
         currentBook: {
           ...state.currentBook,
@@ -677,7 +799,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   addMemo: (title, content) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       const newMemo = {
         id: nanoid(),
         title,
@@ -685,7 +807,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         date: new Date().toISOString(),
         pinned: false
       };
-      
+
       return {
         currentBook: {
           ...state.currentBook,
@@ -699,11 +821,11 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   updateMemo: (memoId, title, content) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       return {
         currentBook: {
           ...state.currentBook,
-          memos: state.currentBook.memos.map(memo => 
+          memos: state.currentBook.memos.map(memo =>
             memo.id === memoId ? { ...memo, title, content } : memo
           )
         },
@@ -715,7 +837,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   deleteMemo: (memoId) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       return {
         currentBook: {
           ...state.currentBook,
@@ -729,11 +851,11 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   toggleMemoPin: (memoId) => {
     set((state) => {
       if (!state.currentBook) return state;
-      
+
       return {
         currentBook: {
           ...state.currentBook,
-          memos: state.currentBook.memos.map(memo => 
+          memos: state.currentBook.memos.map(memo =>
             memo.id === memoId ? { ...memo, pinned: !memo.pinned } : memo
           )
         },

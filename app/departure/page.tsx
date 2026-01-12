@@ -1,48 +1,33 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import FloatingNavbar from "@/components/FloatingNavbar";
-import { useTravelBookStore } from "@/stores/travelBookStore";
+import { useTravelBookStore, TransportationTicket } from "@/stores/travelBookStore";
 import { useLanguageStore } from "@/stores/languageStore";
 import { getTranslation } from "@/utils/i18n";
-
-type TransportationType = 'flight' | 'train' | 'bus' | 'car' | 'other';
-
-interface TransportationTicket {
-  id: string;
-  type: TransportationType;
-  provider: string;
-  ticketNumber: string;
-  departureLocation: string;
-  arrivalLocation: string;
-  departureDate: string;
-  departureTime: string;
-  arrivalDate: string;
-  arrivalTime: string;
-  price: string;
-  class: string;
-  notes?: string;
-}
+import { useToast } from "@/components/Toast";
+// TransportationType 已在 store 中定义
+type TransportationType = TransportationTicket['type'];
 
 export default function Departure() {
   const router = useRouter();
-  const { currentBook, updateBook } = useTravelBookStore();
+  const { currentBook, updateBook, saveBook, isDirty } = useTravelBookStore();
   const { language } = useLanguageStore();
-  
+  const { showToast } = useToast();
+
   // 翻译辅助函数
   const t = (key: string) => getTranslation(key, language);
-  
-  // Use transportation tickets from current book or initialize empty array
-  const [tickets, setTickets] = useState<TransportationTicket[]>(() => {
-    // @ts-ignore - We'll add transportationTickets to the store later if needed
-    return currentBook?.transportationTickets || [];
-  });
-  
+
+  // 使用正确的类型，从 currentBook 中获取 transportationTickets
+  const [tickets, setTickets] = useState<TransportationTicket[]>(
+    () => currentBook?.transportationTickets || []
+  );
+
   const [editingTicket, setEditingTicket] = useState<TransportationTicket | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  
+
   // Initialize form data
   const [formData, setFormData] = useState<Omit<TransportationTicket, 'id'>>({
     type: 'flight',
@@ -58,37 +43,36 @@ export default function Departure() {
     class: '',
     notes: ''
   });
-  
+
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-  
+
   // Handle add ticket
   const handleAddTicket = () => {
     const newTicket: TransportationTicket = {
       ...formData,
       id: Date.now().toString()
     };
-    
+
     const updatedTickets = [...tickets, newTicket];
     setTickets(updatedTickets);
-    // @ts-ignore - We'll properly update the store later if needed
     updateBook({ transportationTickets: updatedTickets });
-    
+
     setShowAddModal(false);
     resetForm();
+    showToast(t('feedback.addPOISuccess'), 'success');
   };
-  
+
   // Handle delete ticket
   const handleDeleteTicket = (ticketId: string) => {
     const updatedTickets = tickets.filter(ticket => ticket.id !== ticketId);
     setTickets(updatedTickets);
-    // @ts-ignore - We'll properly update the store later if needed
     updateBook({ transportationTickets: updatedTickets });
   };
-  
+
   // Reset form
   const resetForm = () => {
     setFormData({
@@ -107,17 +91,17 @@ export default function Departure() {
     });
     setEditingTicket(null);
   };
-  
+
   // Handle continue to next chapter
   const handleContinue = () => {
     router.push('/collection');
   };
-  
+
   return (
     <div className="min-h-screen p-8 pb-20 font-[family-name:var(--font-geist-sans)]">
       {/* Floating Navigation */}
       <FloatingNavbar currentChapter={1} />
-      
+
       <div className="max-w-4xl mx-auto pt-24">
         {/* Header */}
         <header className="mb-8 text-center">
@@ -136,7 +120,7 @@ export default function Departure() {
               {t('departure.addTransportation')}
             </button>
           </div>
-          
+
           {/* Tickets List */}
           {tickets.length === 0 ? (
             <div className="text-center py-12">
@@ -180,7 +164,7 @@ export default function Departure() {
                       ✕
                     </button>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <div className="text-sm font-medium text-slate-600 mb-1">{t('departure.departureLocation')}</div>
@@ -189,7 +173,7 @@ export default function Departure() {
                         {ticket.departureDate} {ticket.departureTime}
                       </div>
                     </div>
-                    
+
                     <div>
                       <div className="text-sm font-medium text-slate-600 mb-1">{t('departure.arrivalLocation')}</div>
                       <div className="text-slate-800 font-medium">{ticket.arrivalLocation}</div>
@@ -197,18 +181,18 @@ export default function Departure() {
                         {ticket.arrivalDate} {ticket.arrivalTime}
                       </div>
                     </div>
-                    
+
                     <div>
                       <div className="text-sm font-medium text-slate-600 mb-1">{t('departure.class')}</div>
                       <div className="text-slate-800">{ticket.class}</div>
                     </div>
-                    
+
                     <div>
                       <div className="text-sm font-medium text-slate-600 mb-1">{t('departure.price')}</div>
                       <div className="text-slate-800">{ticket.price}</div>
                     </div>
                   </div>
-                  
+
                   {ticket.notes && (
                     <div className="mt-4">
                       <div className="text-sm font-medium text-slate-600 mb-1">{t('departure.notes')}</div>
@@ -219,7 +203,7 @@ export default function Departure() {
               ))}
             </div>
           )}
-          
+
           {/* Navigation Buttons */}
           <div className="flex justify-between pt-8">
             <button
@@ -229,7 +213,7 @@ export default function Departure() {
             >
               {t('departure.backToIntroduction')}
             </button>
-            
+
             <button
               type="button"
               onClick={handleContinue}
@@ -239,7 +223,7 @@ export default function Departure() {
             </button>
           </div>
         </main>
-        
+
         {/* Add Ticket Modal */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -259,7 +243,7 @@ export default function Departure() {
                   ✕
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -278,7 +262,7 @@ export default function Departure() {
                     <option value="other">📋 {t('transport.other')}</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     {t('departure.provider')}
@@ -292,7 +276,7 @@ export default function Departure() {
                     className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     {t('departure.ticketNumber')}
@@ -306,7 +290,7 @@ export default function Departure() {
                     className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     {t('departure.class')}
@@ -320,7 +304,7 @@ export default function Departure() {
                     className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     {t('departure.departureLocation')}
@@ -334,7 +318,7 @@ export default function Departure() {
                     className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     {t('departure.arrivalLocation')}
@@ -348,7 +332,7 @@ export default function Departure() {
                     className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -362,7 +346,7 @@ export default function Departure() {
                       className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       {t('departure.departureTime')}
@@ -376,7 +360,7 @@ export default function Departure() {
                     />
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -390,7 +374,7 @@ export default function Departure() {
                       className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       {t('departure.arrivalTime')}
@@ -404,7 +388,7 @@ export default function Departure() {
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     {t('departure.price')}
@@ -419,7 +403,7 @@ export default function Departure() {
                   />
                 </div>
               </div>
-              
+
               <div className="mt-6">
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   {t('departure.notes')}
@@ -433,7 +417,7 @@ export default function Departure() {
                   className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
                 ></textarea>
               </div>
-              
+
               <div className="flex justify-end gap-4 pt-6">
                 <button
                   onClick={() => setShowAddModal(false)}

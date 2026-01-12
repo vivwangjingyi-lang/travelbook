@@ -7,9 +7,11 @@ interface POIDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   poi: POI | null;
+  parentName?: string;
+  subPois?: POI[];
 }
 
-export default function POIDetailModal({ isOpen, onClose, poi }: POIDetailModalProps) {
+export default function POIDetailModal({ isOpen, onClose, poi, parentName, subPois }: POIDetailModalProps) {
   if (!poi) return null;
 
   // Get category display name
@@ -46,14 +48,39 @@ export default function POIDetailModal({ isOpen, onClose, poi }: POIDetailModalP
                 ✕
               </button>
             </div>
-            
+
+            {parentName && (
+              <div className="mb-4">
+                <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100 flex items-center gap-1.5 w-fit">
+                  <span>📍 Belongs to:</span>
+                  <span className="font-semibold">{parentName}</span>
+                </span>
+              </div>
+            )}
+
             {poi.notes && (
               <div className="mb-6">
                 <h4 className="text-sm font-medium text-gray-600 mb-2">Notes</h4>
-                <p className="text-gray-700 whitespace-pre-line leading-relaxed">{poi.notes}</p>
+                <p className="text-gray-700 whitespace-pre-line leading-relaxed text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">{poi.notes}</p>
               </div>
             )}
-            
+
+            {subPois && subPois.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-2">
+                  <span>Sub-locations</span>
+                  <span className="text-xs bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full">{subPois.length}</span>
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {subPois.map(sub => (
+                    <span key={sub.id} className="text-xs px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 shadow-sm">
+                      {sub.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end">
               <button
                 onClick={onClose}

@@ -8,7 +8,7 @@ import { getTranslation } from "@/utils/i18n";
 export default function ExamplesPage() {
   const router = useRouter();
   const { language } = useLanguageStore();
-  
+
   // 获取翻译文本的辅助函数
   const t = (key: string) => getTranslation(key, language);
 
@@ -25,7 +25,7 @@ export default function ExamplesPage() {
               ← Back to Home
             </button>
           </div>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -48,7 +48,7 @@ export default function ExamplesPage() {
             className="bg-white rounded-2xl shadow-lg p-8 border border-slate-200"
           >
             <h2 className="text-3xl font-semibold mb-8 text-slate-800 font-[family-name:var(--font-playfair-display)]">{t('examples.gettingStarted')}</h2>
-            
+
             <div className="space-y-12">
               {/* Step 1: Creating Your First Travel Book */}
               <div className="flex flex-col md:flex-row gap-8 items-start">
@@ -67,7 +67,7 @@ export default function ExamplesPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Step 2: Adding POIs */}
               <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="bg-indigo-100 rounded-full w-16 h-16 flex items-center justify-center flex-shrink-0">
@@ -93,7 +93,7 @@ export default function ExamplesPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Step 3: Using the Canvas */}
               <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="bg-indigo-100 rounded-full w-16 h-16 flex items-center justify-center flex-shrink-0">
@@ -111,7 +111,7 @@ export default function ExamplesPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Step 4: Daily Itineraries */}
               <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="bg-indigo-100 rounded-full w-16 h-16 flex items-center justify-center flex-shrink-0">
@@ -124,7 +124,7 @@ export default function ExamplesPage() {
                   </p>
                 </div>
               </div>
-              
+
               {/* Step 5: Adding Memos */}
               <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="bg-indigo-100 rounded-full w-16 h-16 flex items-center justify-center flex-shrink-0">
@@ -149,7 +149,7 @@ export default function ExamplesPage() {
             transition={{ duration: 0.8, delay: 0.2 }}
           >
             <h2 className="text-3xl font-semibold mb-10 text-center text-slate-800 font-[family-name:var(--font-playfair-display)]">{t('examples.featuresOverview')}</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Feature 1 */}
               <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
@@ -163,7 +163,7 @@ export default function ExamplesPage() {
                   {t('examples.featureOverview1.description')}
                 </p>
               </div>
-              
+
               {/* Feature 2 */}
               <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
                 <div className="flex items-center mb-4">
@@ -176,7 +176,7 @@ export default function ExamplesPage() {
                   {t('examples.featureOverview2.description')}
                 </p>
               </div>
-              
+
               {/* Feature 3 */}
               <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
                 <div className="flex items-center mb-4">
@@ -189,7 +189,7 @@ export default function ExamplesPage() {
                   {t('examples.featureOverview3.description')}
                 </p>
               </div>
-              
+
               {/* Feature 4 */}
               <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
                 <div className="flex items-center mb-4">
@@ -202,7 +202,7 @@ export default function ExamplesPage() {
                   {t('examples.featureOverview4.description')}
                 </p>
               </div>
-              
+
               {/* Feature 5 */}
               <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
                 <div className="flex items-center mb-4">
@@ -215,7 +215,7 @@ export default function ExamplesPage() {
                   {t('examples.featureOverview5.description')}
                 </p>
               </div>
-              
+
               {/* Feature 6 */}
               <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
                 <div className="flex items-center mb-4">
@@ -241,7 +241,7 @@ export default function ExamplesPage() {
             className="bg-white rounded-2xl shadow-lg p-8 border border-slate-200"
           >
             <h2 className="text-3xl font-semibold mb-8 text-slate-800 font-[family-name:var(--font-playfair-display)]">{t('examples.tips')}</h2>
-            
+
             <div className="space-y-6">
               <div className="flex items-start">
                 <div className="bg-yellow-100 rounded-full p-2 mr-4 mt-1">
@@ -252,7 +252,7 @@ export default function ExamplesPage() {
                   <p className="text-slate-600">{t('examples.tip1.description')}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-start">
                 <div className="bg-yellow-100 rounded-full p-2 mr-4 mt-1">
                   <span className="text-yellow-700">💡</span>
@@ -262,7 +262,7 @@ export default function ExamplesPage() {
                   <p className="text-slate-600">{t('examples.tip2.description')}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-start">
                 <div className="bg-yellow-100 rounded-full p-2 mr-4 mt-1">
                   <span className="text-yellow-700">💡</span>
@@ -272,7 +272,7 @@ export default function ExamplesPage() {
                   <p className="text-slate-600">{t('examples.tip3.description')}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-start">
                 <div className="bg-yellow-100 rounded-full p-2 mr-4 mt-1">
                   <span className="text-yellow-700">💡</span>

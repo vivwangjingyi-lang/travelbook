@@ -10,13 +10,15 @@ interface POIFormProps {
   isEditMode?: boolean;
   title?: string;
   feedback?: { message: string; type: 'success' | 'error' } | null;
+  allPois?: POI[];
 }
 
-export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = false, title, feedback }: POIFormProps) {
+export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = false, title, feedback, allPois }: POIFormProps) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState<POICategory>('sightseeing');
   const [visitTime, setVisitTime] = useState('');
   const [notes, setNotes] = useState('');
+  const [parentId, setParentId] = useState<string | undefined>(undefined);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Reset form fields
@@ -25,6 +27,7 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
     setCategory('sightseeing');
     setVisitTime('');
     setNotes('');
+    setParentId(undefined);
     setErrors({});
   };
 
@@ -34,6 +37,7 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
       setCategory(initialData.category);
       setVisitTime(initialData.visitTime);
       setNotes(initialData.notes || '');
+      setParentId(initialData.parentId);
     } else {
       resetForm();
     }
@@ -55,6 +59,7 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
         category,
         visitTime,
         notes,
+        parentId,
         createdAt: initialData?.createdAt || new Date().toISOString(),
       });
       if (!isEditMode) resetForm();
@@ -66,13 +71,13 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
       <h2 className="text-2xl font-semibold mb-4 text-slate-800">
         {title || (isEditMode ? 'Edit Point of Interest' : 'Add New Point of Interest')}
       </h2>
-      
+
       {feedback && (
         <div className={`mb-4 px-4 py-3 rounded-lg ${feedback.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
           {feedback.message}
         </div>
       )}
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="name" className="block text-sm font-medium text-slate-700">Name</label>
@@ -127,6 +132,24 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
             rows={3}
             placeholder="Additional notes..."
           />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="parentId" className="block text-sm font-medium text-slate-700">Belongs to (Parent Location)</label>
+          <select
+            id="parentId"
+            value={parentId || ''}
+            onChange={(e) => setParentId(e.target.value || undefined)}
+            className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
+          >
+            <option value="">None (Top-level)</option>
+            {allPois && allPois
+              .filter(p => !isEditMode || (p.id !== initialData?.id)) // Prevent self-selection
+              .map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))
+            }
+          </select>
         </div>
 
         <div className="flex gap-2">

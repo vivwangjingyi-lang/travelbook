@@ -9,9 +9,10 @@ interface POICardProps {
   onDelete: (id: string) => void;
   onEdit?: (poi: POI) => void;
   onView?: (poi: POI) => void;
+  parentName?: string;
 }
 
-export default React.memo(function POICard({ poi, onDelete, onEdit, onView }: POICardProps) {
+export default React.memo(function POICard({ poi, onDelete, onEdit, onView, parentName }: POICardProps) {
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'accommodation':
@@ -50,6 +51,11 @@ export default React.memo(function POICard({ poi, onDelete, onEdit, onView }: PO
           </div>
           <div className="mt-1 flex items-center gap-2">
             <span className="text-xs text-slate-500">{poi.visitTime}</span>
+            {parentName && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 border border-slate-200">
+                📍 {parentName}
+              </span>
+            )}
           </div>
           {poi.notes && (
             <p className="text-sm text-slate-600 mt-2 line-clamp-2 truncate">{poi.notes}</p>

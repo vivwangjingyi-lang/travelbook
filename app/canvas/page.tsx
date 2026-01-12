@@ -12,37 +12,37 @@ export default function Canvas() {
   const router = useRouter();
   // 画布引用
   const canvasRef = useRef<HTMLDivElement>(null);
-  
+
   // 全局状态管理
   const { currentBook, addCanvasPOI } = useTravelBookStore();
   const { language } = useLanguageStore();
-  
+
   // 翻译辅助函数
   const t = (key: string) => getTranslation(key, language);
-  
+
   // 获取当前旅行书的POI数据
   const availablePOIs = currentBook?.pois || [];
-  
 
-  
+
+
   // 处理拖拽结束
   const handleDrop = (event: React.DragEvent, poi: POI) => {
     event.preventDefault();
-    
+
     if (!currentBook) return;
-    
+
     // 获取画布位置
     const canvas = event.currentTarget;
     const rect = canvas.getBoundingClientRect();
-    
+
     // 计算拖拽位置相对于画布的坐标
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    
+
     // 确保坐标在画布范围内
     const clampedX = Math.max(20, Math.min(x, rect.width - 20));
     const clampedY = Math.max(20, Math.min(y, rect.height - 20));
-    
+
     // 添加新POI到画布
     addCanvasPOI({
       name: poi.name,
@@ -51,27 +51,29 @@ export default function Canvas() {
       y: clampedY,
       visitTime: poi.visitTime,
       notes: poi.notes,
+      parentId: poi.parentId,
+      originalId: poi.id,
       createdAt: new Date().toISOString(),
     });
   };
-  
+
   // 允许放置
   const allowDrop = (event: React.DragEvent) => {
     event.preventDefault();
   };
-  
+
   // 拖拽开始
   const handleDragStart = (event: React.DragEvent, poi: POI) => {
     event.dataTransfer.setData("text/plain", JSON.stringify(poi));
   };
-  
 
-  
+
+
   return (
     <div className="min-h-screen p-8 pb-20 font-[family-name:var(--font-geist-sans)]">
       {/* Floating Navigation */}
       <FloatingNavbar currentChapter={3} />
-      
+
       <div className="max-w-6xl mx-auto pt-24">
         {/* Header */}
         <header className="mb-8 text-center">
@@ -85,13 +87,13 @@ export default function Canvas() {
             {/* POI List (Sidebar) */}
             <div className="lg:w-1/4 space-y-4">
               <h2 className="text-2xl font-semibold mb-4 text-slate-800">{t('canvas.yourPoints')}</h2>
-              
+
               <div className="space-y-3 max-h-[300px] sm:max-h-[400px] md:max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                 {/* Draggable POI Cards */}
                 {availablePOIs.map((poi: POI) => {
                   // Check if POI is already on canvas
                   const isOnCanvas = currentBook?.canvasPois.some(canvasPoi => canvasPoi.name === poi.name) || false;
-                  
+
                   return (
                     <div
                       key={poi.id}
@@ -101,11 +103,11 @@ export default function Canvas() {
                     >
                       <div>
                         <h4 className="font-medium text-slate-800">{poi.name}</h4>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${poi.category === "accommodation" ? "bg-blue-100 text-blue-700" : 
-                                                                       poi.category === "sightseeing" ? "bg-green-100 text-green-700" : 
-                                                                       poi.category === "food" ? "bg-red-100 text-red-700" : 
-                                                                       poi.category === "entertainment" ? "bg-purple-100 text-purple-700" : 
-                                                                       "bg-yellow-100 text-yellow-700"}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${poi.category === "accommodation" ? "bg-blue-100 text-blue-700" :
+                          poi.category === "sightseeing" ? "bg-green-100 text-green-700" :
+                            poi.category === "food" ? "bg-red-100 text-red-700" :
+                              poi.category === "entertainment" ? "bg-purple-100 text-purple-700" :
+                                "bg-yellow-100 text-yellow-700"}`}>
                           {t(`category.${poi.category}`)}
                         </span>
                       </div>
@@ -126,7 +128,7 @@ export default function Canvas() {
             {/* Canvas Area */}
             <div className="lg:flex-1">
               <h2 className="text-2xl font-semibold mb-4 text-slate-800">{t('canvas.mapCanvas')}</h2>
-              <div 
+              <div
                 ref={canvasRef}
                 id="canvas-area"
                 onDrop={(e) => {

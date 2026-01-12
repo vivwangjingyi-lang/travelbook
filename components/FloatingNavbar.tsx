@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTravelBookStore } from '@/stores/travelBookStore';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getTranslation } from '@/utils/i18n';
+import { useToast } from './Toast';
 import ConfirmationModal from './ConfirmationModal';
 
 interface FloatingNavbarProps {
@@ -15,11 +16,26 @@ export default function FloatingNavbar({ currentChapter }: FloatingNavbarProps) 
   const router = useRouter();
   const { currentBook, isDirty, saveBook, resetBook } = useTravelBookStore();
   const { language } = useLanguageStore();
+  const { showToast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [targetPath, setTargetPath] = useState<string | null>(null);
-  
+
   // 翻译辅助函数
   const t = (key: string) => getTranslation(key, language);
+
+  // 浏览器离开前警告
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = t('warning.unsavedChanges');
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty, t]);
 
   const chapters = [
     { number: 0, key: 'chapter.introduction', path: '/introduction' },
@@ -54,8 +70,11 @@ export default function FloatingNavbar({ currentChapter }: FloatingNavbarProps) 
   // Save and exit
   const handleSaveAndExit = () => {
     saveBook();
+    showToast(t('feedback.saveSuccess'), 'success');
     if (targetPath) {
-      router.push(targetPath);
+      setTimeout(() => {
+        router.push(targetPath);
+      }, 300);
     }
     setShowModal(false);
     setTargetPath(null);
@@ -88,14 +107,14 @@ export default function FloatingNavbar({ currentChapter }: FloatingNavbarProps) 
         >
           ← {t('nav.library')}
         </button>
-        
+
         {/* Chapter Navigation Buttons */}
         {chapters.map((chapter) => (
           <button
             key={chapter.number}
             onClick={() => handleNavigate(chapter.path)}
             className={`px-4 py-2 rounded-full text-sm transition-all duration-300 whitespace-nowrap ${currentChapter === chapter.number
-              ? 'bg-slate-800 text-white shadow-lg' 
+              ? 'bg-slate-800 text-white shadow-lg'
               : 'bg-white/90 text-slate-600 hover:bg-white/100 hover:shadow-md'}`}
           >
             {t('nav.chapter')} {chapter.number}: {t(chapter.key)}
