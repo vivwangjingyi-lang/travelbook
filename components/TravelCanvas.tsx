@@ -103,79 +103,52 @@ const TravelCanvas: React.FC<TravelCanvasProps> = ({
 
       {/* Canvas Content */}
       <div ref={constraintsRef} className="absolute inset-0">
-        {/* Routes */}
-        {mode === 'route' && routes.map((route) => {
-          const fromPoi = getCanvasPoi(route.fromPoiId);
-          const toPoi = getCanvasPoi(route.toPoiId);
-          if (!fromPoi || !toPoi) return null;
-
-          return (
-            <svg key={route.id} className="absolute inset-0 w-full h-full pointer-events-none">
-              <defs>
-                <marker id={`arrowhead-${route.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                  <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
-                </marker>
-              </defs>
-              <path
-                d={`M ${fromPoi.x + 50} ${fromPoi.y + 15} C ${(fromPoi.x + toPoi.x) / 2 + 50} ${fromPoi.y + 15}, ${(fromPoi.x + toPoi.x) / 2 + 50} ${toPoi.y + 15}, ${toPoi.x + 50} ${toPoi.y + 15}`}
-                stroke="#64748b"
-                strokeWidth="2"
-                strokeDasharray="5,5"
-                fill="none"
-                markerEnd={`url(#arrowhead-${route.id})`}
-              />
-              <text x={(fromPoi.x + toPoi.x) / 2 + 50} y={(fromPoi.y + toPoi.y) / 2 + 15 - 10} fill="#64748b" fontSize="12" textAnchor="middle" pointerEvents="none">
-                {route.duration} ({route.transportation})
-              </text>
-            </svg>
-          );
-        })}
+        {/* Routes removed from canvas, now displayed as list below */}
 
         {/* Parent-Child Relationships (Behind POIs) */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-          {canvasPOIs.map(poi => {
-            if (!poi.parentId) return null;
+          {canvasPOIs.map(childPoi => {
+            if (!childPoi.parentId) return null;
 
             // 查找对应的父节点 Canvas 对象
-            const parent = canvasPOIs.find(p => p.originalId === poi.parentId);
-            if (!parent) return null;
+            const parentPoi = canvasPOIs.find(p => p.id === childPoi.parentId);
+            if (!parentPoi) return null;
 
             // 实时坐标计算逻辑
-            const isThisParentDragging = dragInfo.id === parent.id;
-            const isThisChildDragging = dragInfo.id === poi.id;
+            // 使用与POI元素相同的拖拽跟随逻辑，确保视觉同步
+            const isParentDragging = dragInfo.id === parentPoi.id;
+            const isChildDragging = dragInfo.id === childPoi.id;
+            const isChildFollowing = dragInfo.id && childPoi.parentId && dragInfo.id === childPoi.parentId;
 
-            // 计算父节点当前视觉中心坐标
-            const pX = isThisParentDragging ? parent.x + dragInfo.offset.x : parent.x;
-            const pY = isThisParentDragging ? parent.y + dragInfo.offset.y : parent.y;
+            // 计算父节点当前视觉坐标
+            const parentX = isParentDragging ? parentPoi.x + dragInfo.offset.x : parentPoi.x;
+            const parentY = isParentDragging ? parentPoi.y + dragInfo.offset.y : parentPoi.y;
 
-            // 计算子节点当前视觉中心坐标（如果父在动，子要加偏移；如果自己在动，子也要加偏移）
-            const cX = (isThisChildDragging || isThisParentDragging) ? poi.x + dragInfo.offset.x : poi.x;
-            const cY = (isThisChildDragging || isThisParentDragging) ? poi.y + dragInfo.offset.y : poi.y;
+            // 计算子节点当前视觉坐标（与POI元素使用相同的逻辑）
+            const childX = (isChildDragging || isChildFollowing) ? childPoi.x + dragInfo.offset.x : childPoi.x;
+            const childY = (isChildDragging || isChildFollowing) ? childPoi.y + dragInfo.offset.y : childPoi.y;
 
-            const startX = pX + 40;
-            const startY = pY + 17;
-            const endX = cX + 40;
-            const endY = cY + 17;
+            // 连接线起点和终点定位到POI卡片的边缘
+            // 这样即使卡片宽度变化，连接线看起来也会紧紧连接
+            // 假设卡片垂直方向始终居中，使用固定的Y坐标
+            const startX = parentX + 40;
+            const startY = parentY + 17;
+            const endX = childX + 40;
+            const endY = childY + 17;
 
+            // 贝塞尔曲线控制点（中间位置）
             const controlX = (startX + endX) / 2;
 
             return (
-              <g key={`relation-group-${poi.id}`}>
-                <defs>
-                  <linearGradient id={`grad-${poi.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#64748b" stopOpacity="0.6" />
-                  </linearGradient>
-                </defs>
+              <g key={`relation-${parentPoi.id}-${childPoi.id}`}>
                 <path
                   d={`M ${startX} ${startY} C ${controlX} ${startY}, ${controlX} ${endY}, ${endX} ${endY}`}
-                  stroke={`url(#grad-${poi.id})`}
-                  strokeWidth="2"
+                  stroke="#64748b"
+                  strokeWidth="1.5"
                   fill="none"
-                  strokeDasharray="4,4"
+                  strokeDasharray="3,3"
+                  opacity="0.5"
                 />
-                <circle cx={startX} cy={startY} r="3" fill="#94a3b8" opacity="0.5" />
-                <circle cx={endX} cy={endY} r="3" fill="#64748b" opacity="0.5" />
               </g>
             );
           })}
@@ -197,18 +170,16 @@ const TravelCanvas: React.FC<TravelCanvasProps> = ({
           const isSelected = selectedPoiIds.includes(poi.id);
           const order = getPoiOrder(poi.id);
 
-          // 核心展示逻辑
+          // 核心展示逻辑 - 实现空间解耦：父子节点独立移动
           const isBeingDragged = dragInfo.id === poi.id;
-          const isFollower = dragInfo.id && poi.parentId &&
-            canvasPOIs.find(p => p.id === dragInfo.id)?.originalId === poi.parentId;
 
-          const currentX = (isBeingDragged || isFollower) ? poi.x + dragInfo.offset.x : poi.x;
-          const currentY = (isBeingDragged || isFollower) ? poi.y + dragInfo.offset.y : poi.y;
+          const currentX = isBeingDragged ? poi.x + dragInfo.offset.x : poi.x;
+          const currentY = isBeingDragged ? poi.y + dragInfo.offset.y : poi.y;
 
           return (
             <motion.div
               key={poi.id}
-              className="absolute cursor-move group"
+              className="absolute cursor-move group mx-1 my-1"
               style={{ x: currentX, y: currentY }}
               drag={mode === 'edit'}
               dragConstraints={constraintsRef}
@@ -217,13 +188,13 @@ const TravelCanvas: React.FC<TravelCanvasProps> = ({
               onDrag={(event, info) => handleDrag(event, info, poi)}
               onDragEnd={(event, info) => handleDragEnd(event, info, poi)}
               onClick={() => onPOIClick && onPOIClick(poi)}
-              whileHover={{ scale: 1.05, zIndex: 10 }}
+              whileHover={{ scale: 1.05, zIndex: 100 }}
               whileTap={{ scale: 0.95 }}
               dragTransition={{ bounceStiffness: 500, bounceDamping: 30 }}
               whileDrag={{ scale: 1.1, zIndex: 100 }}
             >
               <div
-                className={`bg-white shadow-lg rounded-full px-3 py-1.5 flex items-center gap-2 relative transition-all duration-300 ${isSelected ? 'ring-2 ring-green-500 ring-offset-2' : mode === 'route' ? 'opacity-50' : ''} ${poi.parentId ? 'scale-90 opacity-90 border border-slate-200' : ''}`}
+                className={`bg-white shadow-lg rounded-full px-3 py-1.5 flex items-center gap-2 relative transition-all duration-300 ${isSelected ? 'ring-2 ring-green-500 ring-offset-2' : (mode === 'route' || (mode === 'edit' && poi.parentId)) ? 'opacity-50' : ''} ${poi.parentId ? 'scale-90 border border-slate-200' : ''}`}
                 role="button"
                 aria-label={`${poi.name}, ${poi.category}`}
               >
@@ -239,21 +210,21 @@ const TravelCanvas: React.FC<TravelCanvasProps> = ({
                   }}
                 />
 
-                {/* Order Badge */}
+                {/* Order Badge - Ensure it's always on top */}
                 {mode === 'route' && order && (
-                  <div className="absolute -top-3 -left-3 bg-slate-800 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
+                  <div className="absolute -top-3 -left-3 bg-slate-800 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-lg ring ring-offset-2 ring-slate-900" style={{ zIndex: 1000 }}>
                     {order}
                   </div>
                 )}
 
-                {/* Hierarchy Badge */}
+                {/* Hierarchy Badge - Move parent indicator to bottom left */}
                 {poi.parentId && (
                   <div className="absolute -bottom-1 -left-1 bg-indigo-500 text-white text-[8px] rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm border border-white" title="Sub-location">
                     L
                   </div>
                 )}
                 {canvasPOIs.some(p => p.parentId === poi.id) && (
-                  <div className="absolute -top-1 -left-1 bg-amber-500 text-white text-[8px] rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm border border-white" title="Parent location">
+                  <div className="absolute -bottom-1 left-1 bg-amber-500 text-white text-[8px] rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm border border-white" title="Parent location">
                     P
                   </div>
                 )}

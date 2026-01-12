@@ -22,99 +22,52 @@ const RippleCircle = ({ delay, scale, opacity, borderWeight = '2px' }: { delay: 
 
 export default function Background() {
   return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#f5f3ff]">
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-[-1] bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
 
-      {/* 1. 核心 Mesh Gradient 渐变层 - 加深饱和度 */}
+      {/* 1. 核心 Mesh Gradient 渐变层 - 柔和自然效果 */}
       <div className="absolute inset-0 opacity-85">
         {/* 左上 Indigo/Violet */}
-        <div className="absolute top-[-25%] left-[-15%] w-[85%] h-[85%] bg-[#c7d2fe] rounded-full blur-[130px] opacity-90" />
+        <div className="absolute top-[-20%] left-[-15%] w-[60%] h-[60%] bg-[#c7d2fe] rounded-full blur-[120px] opacity-60" />
         {/* 右上 Pink/Fuchsia */}
-        <div className="absolute top-[-15%] right-[-10%] w-[65%] h-[75%] bg-[#fbcfe8] rounded-full blur-[110px] opacity-80" />
+        <div className="absolute top-[-15%] right-[-10%] w-[50%] h-[50%] bg-[#fbcfe8] rounded-full blur-[110px] opacity-50" />
         {/* 中心亮调色彩辅助 */}
-        <div className="absolute top-[30%] left-[20%] w-[60%] h-[55%] bg-[#ede9fe] rounded-full blur-[120px]" />
+        <div className="absolute top-[30%] left-[20%] w-[50%] h-[45%] bg-[#ede9fe] rounded-full blur-[120px] opacity-70" />
         {/* 左下 Cyan/Blue */}
-        <div className="absolute bottom-[-15%] left-[-10%] w-[75%] h-[75%] bg-[#bae6fd] rounded-full blur-[130px] opacity-90" />
+        <div className="absolute bottom-[-15%] left-[-10%] w-[60%] h-[60%] bg-[#bfdbfe] rounded-full blur-[120px] opacity-60" />
         {/* 右下 Rose/Orange */}
-        <div className="absolute bottom-[-20%] right-[-15%] w-[85%] h-[85%] bg-[#fecdd3] rounded-full blur-[140px] opacity-80" />
-
-        {/* 额外增加一层深色调填充，增加厚重感 */}
-        <div className="absolute top-[20%] right-[10%] w-[40%] h-[40%] bg-[#ddd6fe] rounded-full blur-[100px] opacity-50" />
+        <div className="absolute bottom-[-20%] right-[-15%] w-[60%] h-[60%] bg-[#fecdd3] rounded-full blur-[130px] opacity-50" />
       </div>
 
-      {/* 2. 中心多层同心圆涟漪 (核心改进：大幅增强可见度) */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1400px] h-[1400px]">
+      {/* 2. 中心多层同心圆涟漪 (简化版：提升性能) */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px]">
         {/* 中心核心柔光 */}
-        <div className="absolute inset-0 rounded-full bg-white/40 scale-[0.35] blur-[100px]" />
+        <div className="absolute inset-0 rounded-full bg-white/30 scale-[0.35] blur-[80px]" />
 
-        {/* 核心主光环 (图片中最粗的那一圈) */}
+        {/* 核心主光环 */}
         <div
-          className="absolute inset-0 rounded-full border-[12px] border-white/40 animate-breathe pointer-events-none blur-[4px]"
+          className="absolute inset-0 rounded-full border-[10px] border-white/50 animate-breathe pointer-events-none blur-[2px]"
           style={{
             '--base-scale': '0.55',
-            boxShadow: '0 0 60px rgba(255, 255, 255, 0.4), inset 0 0 30px rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 0 40px rgba(255, 255, 255, 0.4), inset 0 0 20px rgba(255, 255, 255, 0.2)',
             willChange: 'transform'
           } as any}
         />
 
-        {/* 动态圆环层 - 增加厚度和发光 */}
-        <RippleCircle scale="0.42" opacity={0.8} delay="0s" borderWeight="3px" />
-        <RippleCircle scale="0.48" opacity={0.6} delay="0.4s" borderWeight="2px" />
-        <RippleCircle scale="0.62" opacity={0.45} delay="0.8s" borderWeight="1.5px" />
-        <RippleCircle scale="0.75" opacity={0.3} delay="1.2s" borderWeight="1px" />
-        <RippleCircle scale="0.88" opacity={0.2} delay="1.6s" borderWeight="1px" />
-        <RippleCircle scale="1.05" opacity={0.1} delay="2s" borderWeight="1px" />
-
-        {/* 最外层超大漫反射环 */}
-        <div className="absolute inset-0 rounded-full border-[100px] border-white/10 scale-[1.2] blur-[80px]" />
+        {/* 简化的动态圆环层 - 减少数量提升性能 */}
+        <RippleCircle scale="0.45" opacity={0.6} delay="0s" borderWeight="2px" />
+        <RippleCircle scale="0.60" opacity={0.4} delay="0.8s" borderWeight="1.5px" />
+        <RippleCircle scale="0.75" opacity={0.25} delay="1.6s" borderWeight="1px" />
       </div>
 
-      {/* 3. 星星点缀 - 使用更细碎的效果 */}
-      <Stars count={18} />
+      {/* 3. 星星点缀 - 减少数量提升性能 */}
+      <Stars count={10} />
 
-      {/* 4. 装饰图标层 - 按照图片布局分布，调低存在感 */}
-      <FloatingIcon
-        icon={<TravelIcons.Balloon className="w-16 h-16 text-indigo-400/15" />}
-        className="top-[10%] left-[8%]"
-        delay={0}
-        duration={12}
-      />
-      <FloatingIcon
-        icon={<TravelIcons.Airplane className="w-10 h-10 text-purple-400/15" />}
-        className="top-[15%] right-[10%]"
-        delay={2}
-        duration={15}
-      />
-      <FloatingIcon
-        icon={<TravelIcons.Camera className="w-10 h-10 text-pink-400/12" />}
-        className="bottom-[25%] left-[12%]"
-        delay={4}
-        duration={14}
-      />
-      <FloatingIcon
-        icon={<TravelIcons.Compass className="w-12 h-12 text-blue-400/15" />}
-        className="bottom-[18%] right-[25%]"
-        delay={1}
-        duration={18}
-      />
-      <FloatingIcon
-        icon={<TravelIcons.Globe className="w-14 h-14 text-indigo-500/10" />}
-        className="top-[45%] right-[5%]"
-        delay={3}
-        duration={20}
-      />
-      <FloatingIcon
-        icon={<TravelIcons.Map className="w-10 h-10 text-fuchsia-400/12" />}
-        className="top-[60%] left-[5%]"
-        delay={5}
-        duration={16}
-      />
-
-      {/* 5. 极细微的点阵纹理 - 增加设计的高级感 */}
+      {/* 4. 极细微的点阵纹理 - 更淡更自然 */}
       <div
-        className="absolute inset-0 opacity-[0.2]"
+        className="absolute inset-0 opacity-[0.1]"
         style={{
-          backgroundImage: 'radial-gradient(rgba(139, 92, 246, 0.3) 0.5px, transparent 0.5px)',
-          backgroundSize: '48px 48px',
+          backgroundImage: 'radial-gradient(rgba(139, 92, 246, 0.2) 0.5px, transparent 0.5px)',
+          backgroundSize: '60px 60px',
           maskImage: 'radial-gradient(circle at 50% 50%, black 20%, transparent 80%)'
         }}
       />

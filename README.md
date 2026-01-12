@@ -42,6 +42,10 @@ TravelBook is an elegant travel planning application that helps users create, ma
 - Plan daily itineraries
 - Order POIs for each day
 - Define routes between POIs with transportation details (walk, bus, taxi, train, car, bike)
+- Visual POI indicators (child nodes displayed in gray by default)
+- Route information displayed in separate component below canvas
+- Optimized layer management with visible order badges and adjusted parent/child indicators
+- Improved POI spacing and visibility with z-index optimization
 
 #### Chapter 5: Epilogue
 - Generate personalized journey summaries
@@ -184,4 +188,4 @@ See `Roadmap.md` for planned features and improvements.
 
 ---
 
-*Last Updated: 2026-01-12*
+*Last Updated: 2026-01-13*

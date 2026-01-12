@@ -34,10 +34,10 @@ export default function Epilogue() {
     .sort((a, b) => a.day - b.day) || [];
   
   // 获取POI信息
-  const getPOIName = (poiId: string) => {
+  const getPOIInfo = (poiId: string) => {
     const poi = currentBook?.canvasPois.find(p => p.id === poiId) || 
                 currentBook?.pois.find(p => p.id === poiId);
-    return poi?.name || 'Unknown Location';
+    return poi || { name: 'Unknown Location', visitTime: 'Unknown' };
   };
   
   // 获取交通方式的图标
@@ -141,6 +141,25 @@ export default function Epilogue() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    });
+  };
+
+  // Calculate date for a specific day
+  const calculateDayDate = (day: number) => {
+    if (!currentBook?.startDate) return null;
+    const startDate = new Date(currentBook.startDate);
+    const dayDate = new Date(startDate);
+    dayDate.setDate(startDate.getDate() + (day - 1));
+    return dayDate;
+  };
+
+  // Format date for display
+  const formatDayDate = (date: Date) => {
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      weekday: 'short'
     });
   };
 
@@ -447,46 +466,64 @@ export default function Epilogue() {
             <h3 className="text-xl font-semibold mb-4 text-slate-800">{t('epilogue.itineraryOverview')}</h3>
             
             {sortedItineraries.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {sortedItineraries.map((itinerary) => {
                   const sortedPOIs = [...itinerary.orderedPois].sort((a, b) => a.order - b.order);
                   
+                  // Calculate day date
+                  const dayDate = calculateDayDate(itinerary.day);
+                  const formattedDate = dayDate ? formatDayDate(dayDate) : '';
+                  
                   return (
                     <div key={itinerary.day} className="border-l-4 border-slate-800 pl-4">
-                        <h4 className="text-lg font-medium text-slate-800 mb-3">{t('plot.day')} {itinerary.day}</h4>
+                        {/* Enhanced Day Header with Date and Weekday */}
+                        <h4 className="text-lg font-medium text-slate-800 mb-1">{t('plot.day')} {itinerary.day}</h4>
+                        {formattedDate && (
+                          <p className="text-sm text-slate-500 mb-3">{formattedDate}</p>
+                        )}
                       
-                      {/* POI Schedule */}
+                      {/* Enhanced POI Schedule with Transportation Details */}
                       {sortedPOIs.length > 0 && (
                         <div className="mb-4">
-                          <h5 className="text-md font-medium text-slate-700 mb-2">{t('epilogue.placesToVisit')}</h5>
-                          <ul className="space-y-2">
-                            {sortedPOIs.map((orderedPOI) => (
-                              <li key={orderedPOI.poiId} className="flex items-center gap-2 text-slate-600">
-                                <span className="bg-slate-800 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                                  {orderedPOI.order}
-                                </span>
-                                <span>{getPOIName(orderedPOI.poiId)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      {/* Routes */}
-                      {itinerary.routes.length > 0 && (
-                        <div>
-                          <h5 className="text-md font-medium text-slate-700 mb-2">{t('epilogue.transportationRoutes')}</h5>
-                          <ul className="space-y-2">
-                            {itinerary.routes.map((route) => (
-                              <li key={route.id} className="flex items-center gap-3 text-slate-600">
-                                <span>{getTransportIcon(route.transportation)}</span>
-                                <span className="flex-grow">
-                                  {getPOIName(route.fromPoiId)} → {getPOIName(route.toPoiId)}
-                                </span>
-                                <span className="text-sm bg-slate-100 px-2 py-1 rounded">{route.duration}</span>
-                              </li>
-                            ))}
-                          </ul>
+
+                          <div className="space-y-4">
+                            {sortedPOIs.map((orderedPOI, index) => {
+                              const poiInfo = getPOIInfo(orderedPOI.poiId);
+                              const nextPOI = sortedPOIs[index + 1];
+                              const routeToNextPOI = nextPOI ? itinerary.routes.find(
+                                r => r.fromPoiId === orderedPOI.poiId && r.toPoiId === nextPOI.poiId
+                              ) : null;
+                              
+                              return (
+                                <div key={orderedPOI.poiId}>
+                                  {/* POI Node with Duration */}
+                                  <div className="flex items-center gap-3 text-slate-600">
+                                    <span className="bg-slate-800 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                                      {orderedPOI.order}
+                                    </span>
+                                    <div className="flex-grow">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">{poiInfo.name}</span>
+                                        <span className="text-xs bg-slate-100 px-2 py-1 rounded">{poiInfo.visitTime}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Transportation to Next POI */}
+                                  {routeToNextPOI && nextPOI && (
+                                    <div className="flex items-center gap-3 text-slate-600 ml-8 mt-1">
+                                      <span className="text-sm">{getTransportIcon(routeToNextPOI.transportation)}</span>
+                                      <div className="flex-grow flex items-center gap-2">
+                                        <span className="text-xs text-slate-500">{t('epilogue.to')}</span>
+                                        <span className="text-sm font-medium">{getPOIInfo(nextPOI.poiId).name}</span>
+                                      </div>
+                                      <span className="text-xs bg-slate-100 px-2 py-1 rounded">{routeToNextPOI.duration}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>

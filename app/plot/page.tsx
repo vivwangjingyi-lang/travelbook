@@ -6,12 +6,13 @@ import { motion } from "framer-motion";
 import FloatingNavbar from "@/components/FloatingNavbar";
 import { useTravelBookStore, CanvasPOI, DailyPOI, TransportationType } from "@/stores/travelBookStore";
 import TravelCanvas from "@/components/TravelCanvas";
+import RouteList from "@/components/RouteList";
 import { useLanguageStore } from "@/stores/languageStore";
 import { getTranslation } from "@/utils/i18n";
 
 export default function Plot() {
   const router = useRouter();
-  const { currentBook, setCurrentDay, ensureDailyItinerary, togglePoiSelection, reorderDailyPois, addRoute } = useTravelBookStore();
+  const { currentBook, setCurrentDay, ensureDailyItinerary, togglePoiSelection, removePoiSelection, reorderDailyPois, addRoute, deleteRoute, updateBook } = useTravelBookStore();
   const { language } = useLanguageStore();
   
   // 翻译辅助函数
@@ -40,6 +41,29 @@ export default function Plot() {
   const handleDayChange = (day: number) => {
     setSelectedDay(day);
     setCurrentPhase('selection'); // Reset to selection phase when changing days
+    
+    // Ensure selectedPoiIds is empty when changing days
+    if (currentBook) {
+      const existingItinerary = currentBook.dailyItineraries.find(i => i.day === day);
+      if (existingItinerary) {
+        // Clear selectedPoiIds for the new day
+        existingItinerary.selectedPoiIds = [];
+        existingItinerary.orderedPois = [];
+        existingItinerary.routes = [];
+        
+        // Update the daily itinerary
+        const updatedItineraries = [...currentBook.dailyItineraries];
+        const index = updatedItineraries.findIndex(i => i.day === day);
+        if (index !== -1) {
+          updatedItineraries[index] = existingItinerary;
+          // Update the currentBook in the store
+          updateBook({
+            ...currentBook,
+            dailyItineraries: updatedItineraries
+          });
+        }
+      }
+    }
   };
 
   // 获取当前旅行书的POI数据
@@ -48,11 +72,13 @@ export default function Plot() {
   const selectedPoiIds = dailyItinerary?.selectedPoiIds || [];
   const orderedPois = dailyItinerary?.orderedPois || [];
   const routes = dailyItinerary?.routes || [];
-
+  
   // 确保所选日期的行程存在
   useEffect(() => {
     ensureDailyItinerary(selectedDay);
   }, [selectedDay]);
+
+
 
 
 
@@ -89,7 +115,7 @@ export default function Plot() {
 
   // 处理路径创建
   const handleAddRoute = () => {
-    if (selectedFromPoiId && selectedToPoiId && currentBook) {
+    if (selectedFromPoiId && selectedToPoiId && currentBook && selectedFromPoiId !== selectedToPoiId) {
       addRoute(selectedDay, {
         fromPoiId: selectedFromPoiId,
         toPoiId: selectedToPoiId,
@@ -103,6 +129,11 @@ export default function Plot() {
       setTransportation('walk');
       setDuration('');
     }
+  };
+
+  // 处理路线删除
+  const handleRouteDelete = (routeId: string) => {
+    deleteRoute(selectedDay, routeId);
   };
 
   // 找到POI的排序信息
@@ -173,6 +204,17 @@ export default function Plot() {
                   }
                 }}
               />
+              
+              {/* Route List */}
+              {currentPhase === 'ordering' && (
+                <div className="mt-6">
+                  <RouteList 
+                    routes={routes} 
+                    canvasPOIs={canvasPOIs} 
+                    onRouteDelete={handleRouteDelete} 
+                  />
+                </div>
+              )}
             </div>
 
             {/* Itinerary Panel */}
@@ -193,11 +235,53 @@ export default function Plot() {
               ) : (
                 <div className="mb-6">
                   <button
-                    onClick={() => setCurrentPhase('selection')}
+                    onClick={() => {
+                      setCurrentPhase('selection');
+                      // 清理状态：将routes清空
+                      if (currentBook && dailyItinerary) {
+                        const updatedItinerary = {
+                          ...dailyItinerary,
+                          routes: []
+                        };
+                        const updatedItineraries = [...currentBook.dailyItineraries];
+                        const index = updatedItineraries.findIndex(i => i.day === selectedDay);
+                        if (index !== -1) {
+                          updatedItineraries[index] = updatedItinerary;
+                          updateBook({
+                            ...currentBook,
+                            dailyItineraries: updatedItineraries
+                          });
+                        }
+                      }
+                    }}
                     className="w-full px-4 py-2 bg-white border border-slate-300 text-slate-800 rounded-full shadow-lg hover:bg-slate-100 transition-all duration-300"
                   >
                     {t('plot.backToSelection')}
                   </button>
+                </div>
+              )}
+              
+              {/* Selected POIs List */}
+              {currentPhase === 'selection' && selectedPoiIds.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-slate-700 mb-2">{t('plot.selectedPOIs')} ({selectedPoiIds.length})</h3>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {selectedPoiIds.map((poiId, index) => {
+                      const canvasPoi = getCanvasPoi(poiId);
+                      if (!canvasPoi) return null;
+                      return (
+                        <div key={`${poiId}-${index}`} className="flex items-center justify-between bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-sm">
+                          <span className="text-sm font-medium text-slate-800">{canvasPoi.name}</span>
+                          <button
+                            onClick={() => removePoiSelection(selectedDay, poiId)}
+                            className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            {t('plot.remove')}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -213,21 +297,21 @@ export default function Plot() {
                         if (!canvasPoi) return null;
                         
                         return (
-                          <motion.div
-                            key={orderedPoi.poiId}
-                            className="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-move"
-                            draggable
-                            onDragStart={() => setSelectedFromPoiId(orderedPoi.poiId)}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={() => {
-                              if (selectedFromPoiId) {
-                                const fromIndex = orderedPois.findIndex(p => p.poiId === selectedFromPoiId);
-                                if (fromIndex !== -1) {
-                                  handleDragEnd(fromIndex, index);
-                                }
-                              }
-                            }}
-                          >
+                              <motion.div
+                                key={`${orderedPoi.poiId}-${orderedPoi.order}`}
+                                className="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-move"
+                                draggable
+                                onDragStart={() => setSelectedFromPoiId(orderedPoi.poiId)}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={() => {
+                                  if (selectedFromPoiId) {
+                                    const fromIndex = orderedPois.findIndex(p => p.poiId === selectedFromPoiId);
+                                    if (fromIndex !== -1) {
+                                      handleDragEnd(fromIndex, index);
+                                    }
+                                  }
+                                }}
+                              >
                             <div className="flex items-center gap-2">
                               <div className="bg-slate-800 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
                                 {orderedPoi.order}
@@ -249,31 +333,31 @@ export default function Plot() {
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">{t('plot.from')}</label>
                       <select
-                        value={selectedFromPoiId || ''}
-                        onChange={(e) => setSelectedFromPoiId(e.target.value || null)}
-                        className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                      >
-                        <option value="">{t('plot.selectPOI')}</option>
-                        {selectedPoiIds.map((poiId) => {
-                          const poi = getCanvasPoi(poiId);
-                          return poi ? <option key={poiId} value={poiId}>{poi.name}</option> : null;
-                        })}
-                      </select>
+                          value={selectedFromPoiId || ''}
+                          onChange={(e) => setSelectedFromPoiId(e.target.value || null)}
+                          className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        >
+                          <option value="">{t('plot.selectPOI')}</option>
+                          {[...new Set(selectedPoiIds)].map((poiId) => {
+                            const poi = getCanvasPoi(poiId);
+                            return poi ? <option key={poiId} value={poiId}>{poi.name}</option> : null;
+                          })}
+                        </select>
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">{t('plot.to')}</label>
                       <select
-                        value={selectedToPoiId || ''}
-                        onChange={(e) => setSelectedToPoiId(e.target.value || null)}
-                        className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                      >
-                        <option value="">{t('plot.selectPOI')}</option>
-                        {selectedPoiIds.map((poiId) => {
-                          const poi = getCanvasPoi(poiId);
-                          return poi ? <option key={poiId} value={poiId}>{poi.name}</option> : null;
-                        })}
-                      </select>
+                          value={selectedToPoiId || ''}
+                          onChange={(e) => setSelectedToPoiId(e.target.value || null)}
+                          className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        >
+                          <option value="">{t('plot.selectPOI')}</option>
+                          {[...new Set(selectedPoiIds)].map((poiId) => {
+                            const poi = getCanvasPoi(poiId);
+                            return poi ? <option key={poiId} value={poiId}>{poi.name}</option> : null;
+                          })}
+                        </select>
                     </div>
                     
                     <div>

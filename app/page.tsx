@@ -11,6 +11,7 @@ import {
   FeatureIcons,
   TravelIcons
 } from "@/components/AnimatedElements";
+import Background from "@/components/Background";
 
 export default function Home() {
   const router = useRouter();
@@ -47,6 +48,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen overflow-hidden relative">
+      {/* 背景组件 */}
+      <Background />
+      
       {/* 语言切换 - 固定右上角 */}
       <motion.div
         className="fixed top-6 right-8 z-50"

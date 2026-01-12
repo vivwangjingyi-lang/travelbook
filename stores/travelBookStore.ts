@@ -121,6 +121,7 @@ interface TravelBookState {
   getDailyItinerary: (day: number) => DailyItinerary | undefined;
   ensureDailyItinerary: (day: number) => void;
   togglePoiSelection: (day: number, poiId: string) => void;
+  removePoiSelection: (day: number, poiId: string) => void;
   reorderDailyPois: (day: number, orderedPois: DailyPOI[]) => void;
 
   // Route management
@@ -510,17 +511,48 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
   // Canvas POI management
   addCanvasPOI: (poi) => {
-    const newCanvasPOI: CanvasPOI = {
-      ...poi,
-      id: nanoid(),
-      originalId: poi.originalId || (poi as any).id // 优先使用已存在的 originalId，或从传入的 POI 对象中提取 id
-    };
-    set((state) => ({
-      currentBook: state.currentBook
-        ? { ...state.currentBook, canvasPois: [...state.currentBook.canvasPois, newCanvasPOI] }
-        : null,
-      isDirty: true
-    }));
+    set((state) => {
+      if (!state.currentBook) return state;
+      
+      const canvasPOIs = state.currentBook.canvasPois;
+      
+      // 创建新的CanvasPOI
+      const newCanvasPOI: CanvasPOI = {
+        ...poi,
+        id: nanoid(),
+        originalId: poi.originalId || (poi as any).id // 优先使用已存在的 originalId，或从传入的 POI 对象中提取 id
+      };
+
+      // 处理新CanvasPOI的parentId：查找对应的CanvasPOI
+      const updatedCanvasPOI = { ...newCanvasPOI };
+      if (updatedCanvasPOI.parentId) {
+        // 查找具有匹配originalId的CanvasPOI
+        const parentCanvasPOI = canvasPOIs.find(p => p.originalId === updatedCanvasPOI.parentId);
+        if (parentCanvasPOI) {
+          updatedCanvasPOI.parentId = parentCanvasPOI.id;
+        }
+      }
+      
+      // 确保parentId始终指向CanvasPOI的ID
+      let updatedCanvasPOIs = [...canvasPOIs, updatedCanvasPOI];
+      
+      // 处理父子关系：更新所有相关的POI
+      updatedCanvasPOIs = updatedCanvasPOIs.map(p => {
+        // 如果当前POI的parentId指向原始POI的ID，更新为CanvasPOI的ID
+        if (p.parentId === updatedCanvasPOI.originalId) {
+          return { ...p, parentId: updatedCanvasPOI.id };
+        }
+        return p;
+      });
+
+      return {
+        currentBook: {
+          ...state.currentBook,
+          canvasPois: updatedCanvasPOIs
+        },
+        isDirty: true
+      };
+    });
   },
 
   updateCanvasPOI: (poiId, poi) => {
@@ -532,27 +564,11 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
       if (!targetPoi) return state;
 
-      // 计算偏移量（如果提供了新坐标）
-      const dx = poi.x !== undefined ? poi.x - targetPoi.x : 0;
-      const dy = poi.y !== undefined ? poi.y - targetPoi.y : 0;
-
       const updatedCanvasPois = currentCanvasPois.map((p) => {
-        // 更新目标 POI
+        // 只更新目标 POI，不影响子节点
         if (p.id === poiId) {
           return { ...p, ...poi };
         }
-
-        // 如果目标 POI 是当前 POI 的父级，且坐标发生了变化，则同步偏移子级
-        // 注意：在 CanvasPOI 中，parentId 对应的是父节点的 originalId 或 id，需要统一逻辑
-        // 根据 deleteCanvasPOI 的逻辑，parentId 存储的是被删除点的 id
-        if ((dx !== 0 || dy !== 0) && p.parentId === targetPoi.originalId) {
-          return {
-            ...p,
-            x: p.x + dx,
-            y: p.y + dy
-          };
-        }
-
         return p;
       });
 
@@ -575,9 +591,9 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
       const filteredCanvasPOIs = state.currentBook.canvasPois.filter((p) => p.id !== poiId);
 
-      // 平级化下属地点：使用 originalId 进行匹配
+      // 平级化下属地点：使用CanvasPOI的id进行匹配
       const finalCanvasPOIs = filteredCanvasPOIs.map(p =>
-        (p.parentId && p.parentId === targetPoi.originalId) ? { ...p, parentId: undefined } : p
+        (p.parentId && p.parentId === targetPoi.id) ? { ...p, parentId: undefined } : p
       );
 
       return {
@@ -646,30 +662,68 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         };
         dailyItineraries.push(newItinerary);
       } else {
-        // Toggle POI selection
+        // Always add POI to selection (support multiple selections of the same POI)
         const itinerary = dailyItineraries[itineraryIndex];
-        const isSelected = itinerary.selectedPoiIds.includes(poiId);
-
-        if (isSelected) {
-          // Remove from selection
-          itinerary.selectedPoiIds = itinerary.selectedPoiIds.filter(
-            (id) => id !== poiId
-          );
-          // Also remove from ordered POIs
-          itinerary.orderedPois = itinerary.orderedPois.filter(
-            (op) => op.poiId !== poiId
-          );
-          // Reorder the remaining POIs
-          itinerary.orderedPois.forEach((op, index) => {
-            op.order = index + 1;
-          });
-        } else {
-          // Add to selection
-          itinerary.selectedPoiIds.push(poiId);
-        }
-
+        itinerary.selectedPoiIds.push(poiId);
         dailyItineraries[itineraryIndex] = itinerary;
       }
+
+      return {
+        currentBook: {
+          ...state.currentBook,
+          dailyItineraries
+        },
+        isDirty: true
+      };
+    });
+  },
+  
+  // Remove a specific POI from selection (supports removing one occurrence at a time)
+  removePoiSelection: (day, poiId) => {
+    set((state) => {
+      if (!state.currentBook) return state;
+
+      const dailyItineraries = [...state.currentBook.dailyItineraries];
+      const itineraryIndex = dailyItineraries.findIndex(
+        (itinerary) => itinerary.day === day
+      );
+
+      if (itineraryIndex === -1) return state;
+
+      const itinerary = dailyItineraries[itineraryIndex];
+      
+      // Find the index of the first occurrence of poiId
+      const poiIndex = itinerary.selectedPoiIds.indexOf(poiId);
+      if (poiIndex === -1) return state;
+      
+      // Remove the first occurrence
+      const updatedSelectedPoiIds = [...itinerary.selectedPoiIds];
+      updatedSelectedPoiIds.splice(poiIndex, 1);
+      
+      // Update orderedPois by removing the corresponding entry
+      const updatedOrderedPois = [...itinerary.orderedPois];
+      const orderedPoiIndex = updatedOrderedPois.findIndex(op => op.poiId === poiId);
+      if (orderedPoiIndex !== -1) {
+        updatedOrderedPois.splice(orderedPoiIndex, 1);
+        
+        // Reorder the remaining POIs
+        updatedOrderedPois.forEach((op, index) => {
+          op.order = index + 1;
+        });
+      }
+      
+      // Update routes that reference this POI
+      const updatedRoutes = itinerary.routes.filter(route => {
+        return route.fromPoiId !== poiId && route.toPoiId !== poiId;
+      });
+      
+      // Update the itinerary
+      dailyItineraries[itineraryIndex] = {
+        ...itinerary,
+        selectedPoiIds: updatedSelectedPoiIds,
+        orderedPois: updatedOrderedPois,
+        routes: updatedRoutes
+      };
 
       return {
         currentBook: {
@@ -710,7 +764,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   // Route management
   addRoute: (day, route) => {
     set((state) => {
-      if (!state.currentBook) return state;
+      if (!state.currentBook || route.fromPoiId === route.toPoiId) return state;
 
       const dailyItineraries = [...state.currentBook.dailyItineraries];
       const itineraryIndex = dailyItineraries.findIndex(
