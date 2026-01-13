@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import FloatingNavbar from "@/components/FloatingNavbar";
-import { useTravelBookStore, POI } from "@/stores/travelBookStore";
+import { useTravelBookStore, POI, Scene } from "@/stores/travelBookStore";
 import TravelCanvas from "@/components/TravelCanvas";
+import WorldView from "@/components/WorldView";
 import { useLanguageStore } from "@/stores/languageStore";
 import { getTranslation } from "@/utils/i18n";
 
@@ -14,7 +15,7 @@ export default function Canvas() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // 全局状态管理
-  const { currentBook, addCanvasPOI } = useTravelBookStore();
+  const { currentBook, addCanvasPOI, switchScene, addScene } = useTravelBookStore();
   const { language } = useLanguageStore();
 
   // 翻译辅助函数
@@ -22,8 +23,36 @@ export default function Canvas() {
 
   // 获取当前旅行书的POI数据
   const availablePOIs = currentBook?.pois || [];
+  const scenes = currentBook?.scenes || [];
+  const activeSceneId = currentBook?.activeSceneId || '';
 
+  // 视图模式: 'world' | 'scene'
+  const [viewMode, setViewMode] = useState<'world' | 'scene'>(scenes.length > 0 ? 'world' : 'scene');
 
+  // Selected POIs state
+  const [selectedPoiIds, setSelectedPoiIds] = useState<string[]>([]);
+
+  // Handle POI click for selection
+  const handlePoiClick = (poi: any, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent canvas click
+
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      // Multi-select toggle
+      setSelectedPoiIds(prev =>
+        prev.includes(poi.id)
+          ? prev.filter(id => id !== poi.id)
+          : [...prev, poi.id]
+      );
+    } else {
+      // Single select
+      setSelectedPoiIds([poi.id]);
+    }
+  };
+
+  // Handle Canvas background click to deselect
+  const handleCanvasClick = () => {
+    setSelectedPoiIds([]);
+  };
 
   // 处理拖拽结束
   const handleDrop = (event: React.DragEvent, poi: POI) => {
@@ -69,8 +98,27 @@ export default function Canvas() {
 
 
 
+  // 处理双击场景进入场景视图
+  const handleSceneDoubleClick = (scene: Scene) => {
+    setViewMode('scene');
+  };
+
+  // 返回世界视图
+  const handleBackToWorld = () => {
+    setViewMode('world');
+  };
+
+  // 处理添加新场景
+  const handleAddScene = () => {
+    const newSceneName = `${t('canvas.newScene') || 'New Scene'} ${scenes.length + 1}`;
+    // Random position within sensible bounds or center
+    const x = 400 + (Math.random() * 200 - 100);
+    const y = 250 + (Math.random() * 100 - 50);
+    addScene(newSceneName, x, y);
+  };
+
   return (
-    <div className="min-h-screen p-8 pb-20 font-[family-name:var(--font-geist-sans)]">
+    <div className="min-h-screen p-8 pb-20 font-[family-name:var(--font-geist-sans)]" onClick={handleCanvasClick}>
       {/* Floating Navigation */}
       <FloatingNavbar currentChapter={3} />
 
@@ -79,86 +127,176 @@ export default function Canvas() {
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold mb-2 text-slate-800">{t('canvas.title')}</h1>
           <p className="text-lg text-slate-600 leading-relaxed">{t('canvas.subtitle')}</p>
+
+          {/* 视图切换按钮 - 始终显示 */}
+          <div className="mt-4 flex justify-center gap-2">
+            <button
+              onClick={() => setViewMode('world')}
+              className={`px-4 py-2 rounded-full text-sm transition-all ${viewMode === 'world' ? 'bg-slate-800 text-white' : 'bg-white/80 text-slate-600 hover:bg-white'} shadow-lg`}
+            >
+              🌍 {t('canvas.worldView')}
+            </button>
+            <button
+              onClick={() => setViewMode('scene')}
+              className={`px-4 py-2 rounded-full text-sm transition-all ${viewMode === 'scene' ? 'bg-slate-800 text-white' : 'bg-white/80 text-slate-600 hover:bg-white'} shadow-lg`}
+            >
+              📍 {t('canvas.sceneView')}
+            </button>
+          </div>
         </header>
 
         {/* Main Content */}
         <main className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-xl shadow-xl p-8">
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* POI List (Sidebar) */}
-            <div className="lg:w-1/4 space-y-4">
-              <h2 className="text-2xl font-semibold mb-4 text-slate-800">{t('canvas.yourPoints')}</h2>
-
-              <div className="space-y-3 max-h-[300px] sm:max-h-[400px] md:max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                {/* Draggable POI Cards */}
-                {availablePOIs.map((poi: POI) => {
-                  // Check if POI is already on canvas
-                  const isOnCanvas = currentBook?.canvasPois.some(canvasPoi => canvasPoi.name === poi.name) || false;
-
-                  return (
-                    <div
-                      key={poi.id}
-                      draggable
-                      onDragStart={(e: React.DragEvent<HTMLDivElement>) => handleDragStart(e, poi)}
-                      className="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-move hover:scale-[1.02] transition-transform active:opacity-50 active:scale-95 flex justify-between items-start"
-                    >
-                      <div>
-                        <h4 className="font-medium text-slate-800">{poi.name}</h4>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${poi.category === "accommodation" ? "bg-blue-100 text-blue-700" :
-                          poi.category === "sightseeing" ? "bg-green-100 text-green-700" :
-                            poi.category === "food" ? "bg-red-100 text-red-700" :
-                              poi.category === "entertainment" ? "bg-purple-100 text-purple-700" :
-                                "bg-yellow-100 text-yellow-700"}`}>
-                          {t(`category.${poi.category}`)}
-                        </span>
-                      </div>
-                      {/* Status Marker */}
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isOnCanvas ? 'bg-green-500 text-white' : 'bg-gray-200'}`}>
-                        {isOnCanvas && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+          {viewMode === 'world' ? (
+            /* 世界视图 */
+            <div className="min-h-[500px]">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-semibold text-slate-800">{t('canvas.worldView')}</h2>
               </div>
+              <WorldView
+                onSceneDoubleClick={handleSceneDoubleClick}
+                onAddScene={handleAddScene}
+              />
             </div>
+          ) : (
+            /* 场景视图 - 原有的 POI 画布 */
+            <>
+              {/* Refined Navigation Bar */}
+              {scenes.length > 0 && (
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                  <button
+                    onClick={handleBackToWorld}
+                    className="group flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-white text-slate-600 hover:text-slate-800 rounded-full transition-all shadow-sm hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-200"
+                  >
+                    <span className="group-hover:-translate-x-1 transition-transform">←</span>
+                    {t('canvas.backToWorld')}
+                  </button>
 
-            {/* Canvas Area */}
-            <div className="lg:flex-1">
-              <h2 className="text-2xl font-semibold mb-4 text-slate-800">{t('canvas.mapCanvas')}</h2>
-              <div
-                ref={canvasRef}
-                id="canvas-area"
-                onDrop={(e) => {
-                  const poiData = e.dataTransfer.getData("text/plain");
-                  if (poiData) {
-                    try {
-                      const parsedPOI = JSON.parse(poiData);
-                      handleDrop(e, parsedPOI);
-                    } catch (error) {
-                      console.error("Failed to parse dropped POI data:", error);
-                    }
-                  }
-                }}
-                onDragOver={allowDrop}
-                onDragEnter={(e) => {
-                  e.currentTarget.classList.add('ring-2', 'ring-green-500');
-                }}
-                onDragLeave={(e) => {
-                  e.currentTarget.classList.remove('ring-2', 'ring-green-500');
-                }}
-                className="relative transition-all duration-300 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
-                tabIndex={0}
-                role="region"
-                aria-label="Map Canvas for dragging and arranging POIs"
-                aria-describedby="canvas-instructions"
-              >
-                <TravelCanvas mode="edit" />
+                  {/* Scene Switcher Tabs */}
+                  <div className="flex flex-wrap gap-2 bg-slate-100/50 p-1.5 rounded-full overflow-x-auto max-w-full custom-scrollbar">
+                    {scenes.map(scene => (
+                      <button
+                        key={scene.id}
+                        onClick={() => switchScene(scene.id)}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${activeSceneId === scene.id
+                          ? 'bg-white text-slate-800 shadow-md ring-1 ring-slate-100'
+                          : 'text-slate-500 hover:bg-white/50 hover:text-slate-700'
+                          }`}
+                      >
+                        {scene.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col lg:flex-row gap-6">
+                {/* POI List (Sidebar) */}
+                <div className="lg:w-1/4 space-y-4">
+                  <h2 className="text-2xl font-semibold mb-4 text-slate-800">{t('canvas.yourPoints') || 'Your Points'}</h2>
+
+                  <div className="space-y-3 max-h-[300px] sm:max-h-[400px] md:max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                    {/* Draggable POI Cards */}
+                    {availablePOIs
+                      .sort((a, b) => {
+                        if (a.id === b.parentId) return -1;
+                        if (b.id === a.parentId) return 1;
+                        if (a.parentId === b.parentId) return a.name.localeCompare(b.name);
+                        if (!a.parentId && !b.parentId) return a.name.localeCompare(b.name);
+                        const rootA = a.parentId ? (availablePOIs.find(p => p.id === a.parentId) || a) : a;
+                        const rootB = b.parentId ? (availablePOIs.find(p => p.id === b.parentId) || b) : b;
+                        if (rootA.id !== rootB.id) return rootA.name.localeCompare(rootB.name);
+                        if (a.id === rootA.id) return -1;
+                        if (b.id === rootA.id) return 1;
+                        return 0;
+                      })
+                      .map((poi: POI) => {
+                        const isOnCanvas = currentBook?.canvasPois.some(canvasPoi => canvasPoi.name === poi.name) || false;
+                        const isParent = availablePOIs.some(p => p.parentId === poi.id);
+                        const isChild = !!poi.parentId;
+
+                        return (
+                          <div
+                            key={poi.id}
+                            draggable
+                            onDragStart={(e: React.DragEvent<HTMLDivElement>) => handleDragStart(e, poi)}
+                            className={`bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-move hover:scale-[1.02] active:opacity-50 active:scale-95 flex justify-between items-start relative ${isChild ? 'ml-4 border-l-2 border-slate-300' : ''}`}
+                          >
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-medium text-slate-800">{poi.name}</h4>
+                                {isParent && (
+                                  <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full shadow-sm flex items-center justify-center font-bold" title="Parent Node">P</span>
+                                )}
+                                {isChild && (
+                                  <span className="bg-indigo-500 text-white text-[10px] px-1.5 py-0.5 rounded-full shadow-sm flex items-center justify-center font-bold" title="Child Node">L</span>
+                                )}
+                              </div>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${poi.category === "accommodation" ? "bg-blue-100 text-blue-700" :
+                                poi.category === "sightseeing" ? "bg-green-100 text-green-700" :
+                                  poi.category === "food" ? "bg-red-100 text-red-700" :
+                                    poi.category === "entertainment" ? "bg-purple-100 text-purple-700" :
+                                      "bg-yellow-100 text-yellow-700"}`}>
+                                {t(`category.${poi.category}`)}
+                              </span>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isOnCanvas ? 'bg-green-500 text-white' : 'bg-gray-200'}`}>
+                              {isOnCanvas && (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* Canvas Area */}
+                <div className="lg:flex-1">
+                  <h2 className="text-2xl font-semibold mb-4 text-slate-800">{t('canvas.mapCanvas')}</h2>
+                  <div
+                    ref={canvasRef}
+                    id="canvas-area"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCanvasClick();
+                    }}
+                    onDrop={(e) => {
+                      const poiData = e.dataTransfer.getData("text/plain");
+                      if (poiData) {
+                        try {
+                          const parsedPOI = JSON.parse(poiData);
+                          handleDrop(e, parsedPOI);
+                        } catch (error) {
+                          console.error("Failed to parse dropped POI data:", error);
+                        }
+                      }
+                    }}
+                    onDragOver={allowDrop}
+                    onDragEnter={(e) => {
+                      e.currentTarget.classList.add('ring-2', 'ring-green-500');
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.classList.remove('ring-2', 'ring-green-500');
+                    }}
+                    className="relative transition-all duration-300 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Map Canvas for dragging and arranging POIs"
+                    aria-describedby="canvas-instructions"
+                  >
+                    <TravelCanvas
+                      mode="edit"
+                      selectedPoiIds={selectedPoiIds}
+                      onPOIClick={(poi, e) => handlePoiClick(poi, e)}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
 
           {/* Instructions Section */}
           <div id="canvas-instructions" className="mt-6 bg-white/80 backdrop-blur-sm p-4 rounded-lg shadow-lg">

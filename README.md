@@ -35,6 +35,8 @@ TravelBook is an elegant travel planning application that helps users create, ma
 
 #### Chapter 3: Canvas
 - Visualize POIs on an interactive canvas
+- **World View**: Manage multiple travel scenes and destinations
+- **Scene Creation**: Easily add new scenes to your journey
 - Drag and drop to arrange POIs
 - Create a visual map of your journey destinations
 

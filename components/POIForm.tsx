@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { POI, POICategory } from '@/stores/travelBookStore';
+import { POI, POICategory, Scene } from '@/stores/travelBookStore';
 
 interface POIFormProps {
   initialData?: POI;
@@ -11,14 +11,16 @@ interface POIFormProps {
   title?: string;
   feedback?: { message: string; type: 'success' | 'error' } | null;
   allPois?: POI[];
+  scenes?: Scene[]; // 新增：可选的场景列表
 }
 
-export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = false, title, feedback, allPois }: POIFormProps) {
+export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = false, title, feedback, allPois, scenes = [] }: POIFormProps) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState<POICategory>('sightseeing');
   const [visitTime, setVisitTime] = useState('');
   const [notes, setNotes] = useState('');
   const [parentId, setParentId] = useState<string | undefined>(undefined);
+  const [sceneId, setSceneId] = useState<string | undefined>(undefined); // 新增场景ID状态
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Reset form fields
@@ -28,6 +30,7 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
     setVisitTime('');
     setNotes('');
     setParentId(undefined);
+    setSceneId(undefined);
     setErrors({});
   };
 
@@ -38,6 +41,7 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
       setVisitTime(initialData.visitTime);
       setNotes(initialData.notes || '');
       setParentId(initialData.parentId);
+      setSceneId(initialData.sceneId); // 初始化场景ID
     } else {
       resetForm();
     }
@@ -60,6 +64,7 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
         visitTime,
         notes,
         parentId,
+        sceneId, // 提交场景ID
         createdAt: initialData?.createdAt || new Date().toISOString(),
       });
       if (!isEditMode) resetForm();
@@ -79,6 +84,29 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 场景选择 (如果有场景数据) */}
+        {scenes && scenes.length > 0 && (
+          <div className="space-y-2">
+            <label htmlFor="scene" className="block text-sm font-medium text-slate-700">Destination (Mapped to Canvas)</label>
+            <select
+              id="scene"
+              value={sceneId || ''}
+              onChange={(e) => setSceneId(e.target.value || undefined)}
+              className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
+            >
+              <option value="">-- Select Destination --</option>
+              {scenes.map(scene => (
+                <option key={scene.id} value={scene.id}>
+                  {scene.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500">
+              Selecting a destination will automatically add this POI to that destination's map.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-2">
           <label htmlFor="name" className="block text-sm font-medium text-slate-700">Name</label>
           <input

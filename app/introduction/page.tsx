@@ -12,7 +12,7 @@ import FloatingNavbar from "@/components/FloatingNavbar";
 
 interface FormData {
   title: string;
-  destination: string;
+  destinations: string[]; // 多目的地支持
   companions: string;
   description: string;
   coverImage: string | null;
@@ -28,7 +28,7 @@ export default function Introduction() {
 
   const [formData, setFormData] = useState<FormData>({
     title: currentBook?.title || "",
-    destination: currentBook?.destination || "",
+    destinations: currentBook?.destination ? [currentBook.destination] : [""], // 初始化为数组
     companions: currentBook?.companions || "",
     description: currentBook?.description || "",
     coverImage: currentBook?.coverImage || null,
@@ -60,6 +60,15 @@ export default function Introduction() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty, t]);
 
+  // Ensure currentBook exists (e.g. after refresh)
+  useEffect(() => {
+    if (!currentBook) {
+      // If we are on the introduction page and no book is active, create a new one context
+      // This ensures handleSaveBook has a target
+      useTravelBookStore.getState().initNewBook();
+    }
+  }, [currentBook]);
+
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -73,9 +82,10 @@ export default function Introduction() {
 
   // 实时验证表单有效性
   useEffect(() => {
-    const isValid = !!(formData.title.trim() && formData.destination.trim() && formData.startDate);
+    const hasValidDestinations = formData.destinations.some(d => d.trim() !== '');
+    const isValid = !!(formData.title.trim() && hasValidDestinations && formData.startDate);
     setIsFormValid(isValid);
-  }, [formData.title, formData.destination, formData.startDate]);
+  }, [formData.title, formData.destinations, formData.startDate]);
 
   // 初始化时检查书籍是否已保存
   useEffect(() => {
@@ -148,8 +158,9 @@ export default function Introduction() {
       newErrors.title = t('error.titleRequired');
     }
 
-    if (!formData.destination.trim()) {
-      newErrors.destination = t('error.destinationRequired');
+    const hasValidDestinations = formData.destinations.some(d => d.trim() !== '');
+    if (!hasValidDestinations) {
+      newErrors.destinations = t('error.destinationRequired');
     }
 
     if (!formData.startDate) {
@@ -172,16 +183,39 @@ export default function Introduction() {
     setIsSaving(true);
 
     try {
+      // 筛选有效目的地
+      const validDestinations = formData.destinations.filter(d => d.trim() !== '');
+
       // Update the current book with form data
       updateBook({
         title: formData.title,
         description: formData.description,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        destination: formData.destination,
+        destination: validDestinations[0] || '', // 向后兼容
         companions: formData.companions,
         ...(formData.coverImage && { coverImage: formData.coverImage })
       });
+
+      // 初始化 Scenes（如果还没有）
+      if (currentBook && currentBook.scenes.length === 0 && validDestinations.length > 0) {
+        let xOffset = 150;
+        validDestinations.forEach((destName, index) => {
+          useTravelBookStore.getState().addScene(destName, xOffset + index * 200, 200);
+
+          // 添加场景连线
+          if (index > 0) {
+            const scenes = useTravelBookStore.getState().currentBook?.scenes || [];
+            if (scenes.length >= 2) {
+              useTravelBookStore.getState().addSceneRoute(
+                scenes[scenes.length - 2].id,
+                scenes[scenes.length - 1].id,
+                'train'
+              );
+            }
+          }
+        });
+      }
 
       // Save the book to storage
       saveBook();
@@ -203,16 +237,38 @@ export default function Introduction() {
     setIsSaving(true);
 
     try {
+      // 筛选有效目的地
+      const validDestinations = formData.destinations.filter(d => d.trim() !== '');
+
       // Update the current book with form data
       updateBook({
         title: formData.title,
         description: formData.description,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        destination: formData.destination,
+        destination: validDestinations[0] || '',
         companions: formData.companions,
         ...(formData.coverImage && { coverImage: formData.coverImage })
       });
+
+      // 初始化 Scenes（如果还没有）
+      if (currentBook && currentBook.scenes.length === 0 && validDestinations.length > 0) {
+        let xOffset = 150;
+        validDestinations.forEach((destName, index) => {
+          useTravelBookStore.getState().addScene(destName, xOffset + index * 200, 200);
+
+          if (index > 0) {
+            const scenes = useTravelBookStore.getState().currentBook?.scenes || [];
+            if (scenes.length >= 2) {
+              useTravelBookStore.getState().addSceneRoute(
+                scenes[scenes.length - 2].id,
+                scenes[scenes.length - 1].id,
+                'train'
+              );
+            }
+          }
+        });
+      }
 
       // Save the book to storage
       saveBook();
@@ -235,13 +291,15 @@ export default function Introduction() {
     e.preventDefault();
 
     if (validateForm() && currentBook && isBookSaved) {
+      const validDestinations = formData.destinations.filter(d => d.trim() !== '');
+
       // Update the current book with form data
       updateBook({
         title: formData.title,
         description: formData.description,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        destination: formData.destination,
+        destination: validDestinations[0] || '',
         companions: formData.companions,
         ...(formData.coverImage && { coverImage: formData.coverImage })
       });
@@ -271,13 +329,15 @@ export default function Introduction() {
       return;
     }
 
+    const validDestinations = formData.destinations.filter(d => d.trim() !== '');
+
     // 更新并保存
     updateBook({
       title: formData.title,
       description: formData.description,
       startDate: formData.startDate,
       endDate: formData.endDate,
-      destination: formData.destination,
+      destination: validDestinations[0] || '',
       companions: formData.companions,
       ...(formData.coverImage && { coverImage: formData.coverImage })
     });
@@ -348,21 +408,57 @@ export default function Introduction() {
               {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
             </div>
 
-            {/* Destination */}
+            {/* Destinations List */}
             <div>
-              <label htmlFor="destination" className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 {t('introduction.destination')} <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                id="destination"
-                name="destination"
-                value={formData.destination}
-                onChange={handleChange}
-                className={`w-full px-4 py-3 rounded-lg border ${errors.destination ? 'border-red-500' : 'border-slate-200'} bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400 transition-all`}
-                placeholder="e.g., 'Rome, Italy'"
-              />
-              {errors.destination && <p className="mt-1 text-sm text-red-600">{errors.destination}</p>}
+              <p className="text-xs text-slate-500 mb-3">{t('introduction.destinationHint')}</p>
+
+              <div className="space-y-3">
+                {formData.destinations.map((dest, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={dest}
+                      onChange={(e) => {
+                        const newDestinations = [...formData.destinations];
+                        newDestinations[index] = e.target.value;
+                        setFormData(prev => ({ ...prev, destinations: newDestinations }));
+                        if (errors.destinations) {
+                          setErrors(prev => ({ ...prev, destinations: '' }));
+                        }
+                      }}
+                      className={`flex-1 px-4 py-3 rounded-lg border ${errors.destinations ? 'border-red-500' : 'border-slate-200'} bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400 transition-all`}
+                      placeholder={t('introduction.destinationPlaceholder')}
+                    />
+                    {formData.destinations.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newDestinations = formData.destinations.filter((_, i) => i !== index);
+                          setFormData(prev => ({ ...prev, destinations: newDestinations }));
+                        }}
+                        className="px-3 py-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                      >
+                        {t('introduction.removeDestination')}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, destinations: [...prev.destinations, ''] }));
+                }}
+                className="mt-3 px-4 py-2 text-slate-600 border border-dashed border-slate-300 rounded-lg hover:bg-slate-50 transition-colors text-sm w-full"
+              >
+                + {t('introduction.addDestination')}
+              </button>
+
+              {errors.destinations && <p className="mt-1 text-sm text-red-600">{errors.destinations}</p>}
             </div>
 
             {/* Travel Companions */}
@@ -483,8 +579,8 @@ export default function Introduction() {
                   onClick={handleSaveBook}
                   disabled={!isFormValid || isSaving}
                   className={`px-6 py-2.5 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 ${isFormValid && !isSaving
-                      ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl'
-                      : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl'
+                    : 'bg-gray-400 text-gray-200 cursor-not-allowed'
                     }`}
                   title={!isFormValid ? t('error.requiredFieldsMessage') : ''}
                 >
@@ -514,8 +610,8 @@ export default function Introduction() {
                   onClick={handleSaveAndContinue}
                   disabled={!isFormValid || isSaving}
                   className={`px-6 py-2.5 rounded-full shadow-lg transition-all duration-300 ${isFormValid && !isSaving
-                      ? 'bg-slate-800 text-white hover:bg-slate-700 hover:shadow-xl'
-                      : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    ? 'bg-slate-800 text-white hover:bg-slate-700 hover:shadow-xl'
+                    : 'bg-gray-400 text-gray-200 cursor-not-allowed'
                     }`}
                   title={!isFormValid ? t('error.requiredFieldsMessage') : ''}
                 >

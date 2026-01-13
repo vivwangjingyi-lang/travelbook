@@ -4,9 +4,9 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import FloatingNavbar from "@/components/FloatingNavbar";
 import { useTravelBookStore, POICategory, POI } from "@/stores/travelBookStore";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import POICard from "@/components/POICard";
-import POIForm from "@/components/POIForm";
+import POIFormModal from "@/components/POIFormModal";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import POIDetailModal from "@/components/POIDetailModal";
 import DataStatistics from "@/components/DataStatistics";
@@ -21,15 +21,17 @@ export default function Collection() {
   // 翻译辅助函数
   const t = (key: string) => getTranslation(key, language);
 
-  const [name, setName] = useState("");
-  const [visitTime, setVisitTime] = useState("");
-  const [notes, setNotes] = useState("");
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [poiToDelete, setPoiToDelete] = useState<string | null>(null);
   const [poiToEdit, setPoiToEdit] = useState<POI | undefined>(undefined);
-  const [isEditing, setIsEditing] = useState(false);
+
+  // Modals state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
+
   const [poiToView, setPoiToView] = useState<POI | null>(null);
 
   const pois = currentBook?.pois || [];
@@ -72,7 +74,7 @@ export default function Collection() {
   // Calculate category counts based on filtered POIs
   const categoryCounts = useMemo(() => {
     const counts: Record<POICategory | 'all', number> = {
-      all: filteredPOIs.length,
+      all: pois.length,
       accommodation: 0,
       sightseeing: 0,
       food: 0,
@@ -81,224 +83,279 @@ export default function Collection() {
       transportation: 0,
     };
 
-    filteredPOIs.forEach(poi => {
+    pois.forEach(poi => {
       counts[poi.category]++;
     });
 
     return counts;
-  }, [filteredPOIs]);
+  }, [pois]);
 
-  // 删除未使用的函数
-  // const handleSubmit = (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   addPOI({ name, category, visitTime, notes, createdAt: new Date().toISOString() });
-  //   setName("");
-  //   setVisitTime("");
-  //   setNotes("");
-  // };
+  const handleAddSubmit = (poiData: Omit<POI, 'id'>) => {
+    try {
+      addPOI(poiData);
+      setFeedback({ message: t('feedback.addPOISuccess'), type: 'success' });
+      setIsAddModalOpen(false);
+      setTimeout(() => setFeedback(null), 3000);
+    } catch (error) {
+      setFeedback({ message: t('feedback.addPOIFailed'), type: 'error' });
+    }
+  };
 
-  // const handleDelete = (poiId: string) => {
-  //   deletePOI(poiId);
-  // };
+  const handleEditSubmit = (poiData: Omit<POI, 'id'>) => {
+    try {
+      if (poiToEdit) {
+        updatePOI(poiToEdit.id, poiData);
+        setFeedback({ message: t('feedback.editPOISuccess'), type: 'success' });
+        setIsEditModalOpen(false);
+        setPoiToEdit(undefined);
+        setTimeout(() => setFeedback(null), 3000);
+      }
+    } catch (error) {
+      setFeedback({ message: t('feedback.editPOIFailed'), type: 'error' });
+    }
+  };
 
   return (
-    <div className="min-h-screen p-8 pb-20 font-[family-name:var(--font-geist-sans)]">
+    <div className="min-h-screen pb-20 font-[family-name:var(--font-geist-sans)]">
       {/* Floating Navigation */}
       <FloatingNavbar currentChapter={2} />
 
-      <div className="pt-24 px-4 lg:px-0">
-        <div className="max-w-5xl mx-auto">
-          {/* Header */}
-          <header className="mb-8 text-center">
-            <h1 className="text-4xl font-bold mb-2 text-slate-800">{t('collection.title')}</h1>
+      <div className="pt-24 px-4 lg:px-8 max-w-7xl mx-auto">
+        {/* Header (Outside container) */}
+        <header className="mb-6 text-center">
+          <h1 className="text-4xl font-bold mb-2 text-slate-800">{t('collection.title')}</h1>
+          <div className="flex items-center justify-center gap-2">
             <p className="text-lg text-slate-600 leading-relaxed">{t('collection.subtitle')}</p>
-          </header>
+            {/* Stats Button */}
+            {pois.length > 0 && (
+              <button
+                onClick={() => setShowStatsModal(true)}
+                className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors"
+                title="View Statistics"
+              >
+                <span className="text-xl">📊</span>
+              </button>
+            )}
+          </div>
+        </header>
 
-          {/* Main Content */}
-          <main className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-xl shadow-xl p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Add/Edit POI Form */}
-              <div className="sticky top-0 max-h-[300px] sm:max-h-[400px] md:max-h-[calc(100vh-300px)] overflow-y-auto pr-2 custom-scrollbar">
-                <POIForm
-                  initialData={poiToEdit}
-                  isEditMode={isEditing}
-                  title={isEditing ? t('collection.editPOI') : t('collection.addPOI')}
-                  feedback={feedback}
-                  allPois={pois}
-                  onSubmit={(poiData) => {
-                    try {
-                      if (isEditing && poiToEdit) {
-                        updatePOI(poiToEdit.id, poiData);
-                        setFeedback({ message: t('feedback.editPOISuccess'), type: 'success' });
-                        setIsEditing(false);
-                        setPoiToEdit(undefined);
-                      } else {
-                        addPOI(poiData);
-                        setFeedback({ message: t('feedback.addPOISuccess'), type: 'success' });
-                      }
-                      // Clear feedback after 3 seconds
-                      setTimeout(() => setFeedback(null), 3000);
-                    } catch (error) {
-                      setFeedback({ message: isEditing ? t('feedback.editPOIFailed') : t('feedback.addPOIFailed'), type: 'error' });
-                    }
-                  }}
-                  onCancel={() => {
-                    setIsEditing(false);
-                    setPoiToEdit(undefined);
-                  }}
-                />
-              </div>
+        {/* Main Glass Container */}
+        <div className="bg-white/30 backdrop-blur-xl border border-white/40 rounded-[2rem] shadow-2xl p-6 md:p-8 space-y-8">
 
-              {/* POI List */}
-              <div className="space-y-4">
-                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg shadow-md">
-                  <h2 className="text-2xl font-semibold text-slate-800">{t('collection.yourCollection')}</h2>
-                  {pois.length === 0 ? (
-                    <div className="text-center py-8 text-slate-400">
-                      <p>{t('collection.noPOI')}</p>
-                      <p className="text-sm mt-2">{t('collection.addFirstPOI')}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Search Bar */}
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder={t('collection.searchPlaceholder')}
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-100 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all duration-300"
-                        />
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                          🔍
-                        </div>
-                        {searchTerm && (
-                          <button
-                            onClick={() => setSearchTerm('')}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                            aria-label={t('collection.clearSearch')}
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
+          {/* Top Controls Area (Search, Add, Sort, Filter) */}
+          <div className="space-y-6">
+            {/* Search & Sort Row */}
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+              {/* Search Bar with Add Button */}
+              <div className="flex w-full md:w-auto gap-4 items-center flex-1">
+                {/* Add POI Button */}
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="flex-shrink-0 px-4 py-2 bg-slate-800 text-white rounded-full shadow-lg hover:bg-slate-700 hover:shadow-xl transition-all flex items-center gap-2 whitespace-nowrap"
+                >
+                  <span className="text-lg font-bold">+</span>
+                  <span className="text-sm font-medium">{t('collection.addPOI')}</span>
+                </button>
 
-                      {/* Sort Options */}
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="text-sm text-gray-600">
-                          {t('collection.showingPOIs').replace('{count}', filteredPOIs.length.toString())}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-600">{t('collection.sortBy')}</span>
-                          <select
-                            value={sortOption}
-                            onChange={(e) => setSortOption(e.target.value as SortOption)}
-                            className="text-sm px-3 py-1 rounded-full bg-gray-100 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all duration-300"
-                          >
-                            <option value="name-asc">{t('collection.sortNameAsc')}</option>
-                            <option value="name-desc">{t('collection.sortNameDesc')}</option>
-                            <option value="time-asc">{t('collection.sortTimeAsc')}</option>
-                            <option value="time-desc">{t('collection.sortTimeDesc')}</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Filter Chips */}
-                      <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto pb-2">
-                        {(['all', 'accommodation', 'sightseeing', 'food', 'entertainment', 'shopping', 'transportation'] as const).map((cat) => (
-                          <button
-                            key={cat}
-                            onClick={() => setSelectedCategory(cat)}
-                            className={`flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-in-out ${selectedCategory === cat
-                              ? 'bg-indigo-600 text-white shadow-md hover:bg-indigo-700'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                              }`}
-                          >
-                            {t(`category.${cat}`)}
-                            <span className="text-xs opacity-80">{categoryCounts[cat]}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <div className="space-y-3 max-h-[200px] sm:max-h-[250px] md:max-h-[calc(100vh-500px)] overflow-y-auto pr-2 custom-scrollbar">
-                        <AnimatePresence mode="wait">
-                          {sortedPOIs.map((poi) => (
-                            <POICard
-                              key={poi.id}
-                              poi={poi}
-                              parentName={poi.parentId ? pois.find(p => p.id === poi.parentId)?.name : undefined}
-                              onView={(poi) => {
-                                setPoiToView(poi);
-                                setShowDetailModal(true);
-                              }}
-                              onEdit={(poi) => {
-                                setPoiToEdit(poi);
-                                setIsEditing(true);
-                              }}
-                              onDelete={(id) => {
-                                setPoiToDelete(id);
-                                setShowDeleteModal(true);
-                              }}
-                            />
-                          ))}
-                        </AnimatePresence>
-                      </div>
-
-                      {/* Next Button */}
-                      <div className="mt-6">
-                        <button
-                          onClick={() => router.push('/canvas')}
-                          className="w-full px-4 py-2 bg-slate-800 text-white rounded-full shadow-lg hover:bg-slate-700 hover:shadow-xl transition-all duration-300"
-                        >
-                          {t('collection.continueToCanvas')}
-                        </button>
-                      </div>
-                    </div>
+                <div className="relative w-full max-w-md">
+                  <input
+                    type="text"
+                    placeholder={t('collection.searchPlaceholder')}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-full bg-white/60 border border-white/40 text-gray-800 placeholder-gray-500 shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white/80 transition-all duration-300"
+                  />
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                    🔍
+                  </div>
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                      aria-label={t('collection.clearSearch')}
+                    >
+                      ✕
+                    </button>
                   )}
                 </div>
               </div>
 
-              {/* Data Statistics */}
-              {pois.length > 0 && (
-                <div className="mt-8 md:col-span-2">
-                  <DataStatistics pois={pois} />
-                </div>
-              )}
+              {/* Sort Options */}
+              <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                <span className="text-sm text-gray-600 whitespace-nowrap">{t('collection.sortBy')}</span>
+                <select
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value as SortOption)}
+                  className="text-sm px-3 py-2 rounded-lg bg-white/60 border border-white/40 text-gray-800 shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white/80 transition-all duration-300 cursor-pointer"
+                >
+                  <option value="name-asc">{t('collection.sortNameAsc')}</option>
+                  <option value="name-desc">{t('collection.sortNameDesc')}</option>
+                  <option value="time-asc">{t('collection.sortTimeAsc')}</option>
+                  <option value="time-desc">{t('collection.sortTimeDesc')}</option>
+                </select>
+              </div>
             </div>
 
-            {/* Confirmation Modal for Delete */}
-            <ConfirmationModal
-              isOpen={showDeleteModal}
-              onClose={() => {
-                setShowDeleteModal(false);
-                setPoiToDelete(null);
-              }}
-              onConfirm={() => {
-                if (poiToDelete) {
-                  deletePOI(poiToDelete);
-                  setShowDeleteModal(false);
-                  setPoiToDelete(null);
-                }
-              }}
-              title={t('collection.deletePOI')}
-              message={t('collection.deletePOIMessage')}
-              confirmText={t('button.delete')}
-              cancelText={t('button.cancel')}
-              destructive={true}
-            />
+            {/* Filter Chips */}
+            <div className="flex flex-wrap gap-2 overflow-x-auto pb-2 no-scrollbar pl-1">
+              {(['all', 'accommodation', 'sightseeing', 'food', 'entertainment', 'shopping', 'transportation'] as const).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-in-out whitespace-nowrap ${selectedCategory === cat
+                    ? 'bg-indigo-600 text-white shadow-lg scale-105'
+                    : 'bg-white/60 border border-white/40 text-gray-700 shadow-sm hover:bg-white/80 hover:shadow-md'
+                    }`}
+                >
+                  {t(`category.${cat}`)}
+                  <span className={`text-xs ml-1 ${selectedCategory === cat ? 'opacity-100' : 'opacity-60'}`}>
+                    {categoryCounts[cat]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-            {/* POI Detail Modal */}
-            <POIDetailModal
-              isOpen={showDetailModal}
-              onClose={() => {
-                setShowDetailModal(false);
-                setPoiToView(null);
-              }}
-              poi={poiToView}
-              parentName={poiToView?.parentId ? pois.find(p => p.id === poiToView.parentId)?.name : undefined}
-              subPois={poiToView ? pois.filter(p => p.parentId === poiToView.id) : []}
-            />
-          </main>
+          {/* POI Grid Content */}
+          <div className="min-h-[40vh]">
+            {pois.length === 0 ? (
+              <div className="text-center py-16 rounded-xl border-2 border-dashed border-slate-300 bg-white/20 shadow-inner">
+                <p className="text-xl text-slate-600 mb-2 font-medium">{t('collection.noPOI')}</p>
+                <p className="text-sm text-slate-500 mb-6">{t('collection.addFirstPOI')}</p>
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="px-6 py-2 bg-slate-800 text-white rounded-full hover:bg-slate-700 transition-all shadow-lg hover:shadow-xl"
+                >
+                  {t('collection.addPOI')}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4 text-sm text-gray-500 px-1">
+                  {t('collection.showingPOIs').replace('{count}', filteredPOIs.length.toString())}
+                </div>
+
+                <motion.div
+                  layout
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  <AnimatePresence mode="popLayout">
+                    {sortedPOIs.map((poi) => (
+                      <div key={poi.id}>
+                        <POICard
+                          poi={poi}
+                          parentName={poi.parentId ? pois.find(p => p.id === poi.parentId)?.name : undefined}
+                          onView={(poi) => {
+                            setPoiToView(poi);
+                            setShowDetailModal(true);
+                          }}
+                          onEdit={(poi) => {
+                            setPoiToEdit(poi);
+                            setIsEditModalOpen(true);
+                          }}
+                          onDelete={(id) => {
+                            setPoiToDelete(id);
+                            setShowDeleteModal(true);
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              </>
+            )}
+          </div>
+
+          {/* Bottom Navigation (Inside Container) */}
+          <div className="flex justify-between items-center pt-8 border-t border-white/30">
+            <button
+              type="button"
+              onClick={() => router.push('/departure')}
+              className="px-6 py-2 bg-white/60 backdrop-blur-sm border border-white/40 text-slate-700 rounded-full shadow-md hover:bg-white hover:shadow-lg transition-all duration-300 font-medium"
+            >
+              ← {t('canvas.previousChapter')}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push('/canvas')}
+              className="px-6 py-2 bg-slate-800 text-white rounded-full shadow-lg hover:bg-slate-700 hover:shadow-xl transition-all duration-300 font-medium"
+            >
+              {t('collection.continueToCanvas')} →
+            </button>
+          </div>
+
         </div>
+
+        {/* Modals outside container */}
+        <POIFormModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          title={t('collection.addPOI')}
+          feedback={feedback}
+          allPois={pois}
+          onSubmit={handleAddSubmit}
+          scenes={currentBook?.scenes || []}
+        />
+
+        <POIFormModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setPoiToEdit(undefined);
+          }}
+          initialData={poiToEdit}
+          title={t('collection.editPOI')}
+          feedback={feedback}
+          allPois={pois}
+          onSubmit={handleEditSubmit}
+          scenes={currentBook?.scenes || []}
+        />
+
+        <ConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setPoiToDelete(null);
+          }}
+          onConfirm={() => {
+            if (poiToDelete) {
+              deletePOI(poiToDelete);
+              setShowDeleteModal(false);
+              setPoiToDelete(null);
+            }
+          }}
+          title={t('collection.deletePOI')}
+          message={t('collection.deletePOIMessage')}
+          confirmText={t('button.delete')}
+          cancelText={t('button.cancel')}
+          destructive={true}
+        />
+
+        <POIDetailModal
+          isOpen={showDetailModal}
+          onClose={() => {
+            setShowDetailModal(false);
+            setPoiToView(null);
+          }}
+          poi={poiToView}
+          parentName={poiToView?.parentId ? pois.find(p => p.id === poiToView.parentId)?.name : undefined}
+          subPois={poiToView ? pois.filter(p => p.parentId === poiToView.id) : []}
+        />
+
+        {/* Stats Modal */}
+        <ConfirmationModal
+          isOpen={showStatsModal}
+          onClose={() => setShowStatsModal(false)}
+          onConfirm={() => setShowStatsModal(false)}
+          title={t('collection.statistics')}
+          message=""
+          confirmText={t('button.close')}
+          cancelText=""
+        >
+          <DataStatistics pois={pois} />
+        </ConfirmationModal>
+
       </div>
     </div>
   );

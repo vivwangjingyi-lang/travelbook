@@ -153,7 +153,10 @@ const exampleBooks: TravelBook[] = [
         content: "Visited the Colosseum today. It's incredible to imagine what it was like in ancient times. The architecture is amazing.",
         date: "2023-05-20T15:45:00Z"
       }
-    ]
+    ],
+    scenes: [],
+    activeSceneId: '',
+    sceneRoutes: []
   },
   {
     id: "example-2",
@@ -261,7 +264,10 @@ const exampleBooks: TravelBook[] = [
         date: "2023-09-12T20:15:00Z",
         pinned: true
       }
-    ]
+    ],
+    scenes: [],
+    activeSceneId: '',
+    sceneRoutes: []
   },
   {
     id: "example-3",
@@ -383,7 +389,10 @@ const exampleBooks: TravelBook[] = [
         content: "Words can't describe the beauty of the Grand Canyon. The colors at sunset were amazing.",
         date: "2023-07-05T18:30:00Z"
       }
-    ]
+    ],
+    scenes: [],
+    activeSceneId: '',
+    sceneRoutes: []
   },
   {
     id: "example-4",
@@ -490,7 +499,10 @@ const exampleBooks: TravelBook[] = [
         content: "Visited a traditional Maasai village today. We learned about their culture and traditions. The people were very friendly.",
         date: "2023-11-10T16:30:00Z"
       }
-    ]
+    ],
+    scenes: [],
+    activeSceneId: '',
+    sceneRoutes: []
   }
 ];
 
@@ -537,7 +549,7 @@ export default function ExampleBookDetail() {
               ← Back to Examples
             </button>
           </div>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -648,7 +660,7 @@ export default function ExampleBookDetail() {
           {activeTab === "pois" && (
             <div className="bg-white/90 backdrop-blur-md rounded-xl p-8 shadow-lg border border-slate-100">
               <h2 className="text-2xl font-semibold mb-8 text-slate-800 font-[family-name:var(--font-playfair-display)]">Points of Interest</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {book.pois.map((poi) => (
                   <div
@@ -680,13 +692,13 @@ export default function ExampleBookDetail() {
           {activeTab === "itineraries" && (
             <div className="bg-white/90 backdrop-blur-md rounded-xl p-8 shadow-lg border border-slate-100">
               <h2 className="text-2xl font-semibold mb-8 text-slate-800 font-[family-name:var(--font-playfair-display)]">Daily Itineraries</h2>
-              
+
               <div className="space-y-10">
                 {book.dailyItineraries.length > 0 ? (
                   book.dailyItineraries.map((itinerary) => (
                     <div key={itinerary.day}>
                       <h3 className="text-xl font-semibold mb-5 text-slate-800 font-[family-name:var(--font-playfair-display)]">Day {itinerary.day}</h3>
-                      
+
                       <div className="space-y-4">
                         {/* Ordered POIs */}
                         <div>
@@ -696,7 +708,7 @@ export default function ExampleBookDetail() {
                               itinerary.orderedPois.map((dailyPoi) => {
                                 const poi = book.pois.find(p => p.id === dailyPoi.poiId);
                                 if (!poi) return null;
-                                
+
                                 return (
                                   <div key={dailyPoi.poiId} className="flex items-start">
                                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-medium mr-4">
@@ -714,7 +726,7 @@ export default function ExampleBookDetail() {
                             )}
                           </div>
                         </div>
-                        
+
                         {/* Routes */}
                         {itinerary.routes.length > 0 && (
                           <div>
@@ -723,9 +735,9 @@ export default function ExampleBookDetail() {
                               {itinerary.routes.map((route) => {
                                 const fromPoi = book.pois.find(p => p.id === route.fromPoiId);
                                 const toPoi = book.pois.find(p => p.id === route.toPoiId);
-                                
+
                                 if (!fromPoi || !toPoi) return null;
-                                
+
                                 return (
                                   <div key={route.id} className="flex items-center">
                                     <div className="mr-4">
@@ -759,7 +771,7 @@ export default function ExampleBookDetail() {
           {activeTab === "memos" && (
             <div className="bg-white/90 backdrop-blur-md rounded-xl p-8 shadow-lg border border-slate-100">
               <h2 className="text-2xl font-semibold mb-8 text-slate-800 font-[family-name:var(--font-playfair-display)]">Travel Memos</h2>
-              
+
               <div className="space-y-6">
                 {book.memos.length > 0 ? (
                   book.memos.map((memo) => (
