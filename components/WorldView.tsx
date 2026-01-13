@@ -2,13 +2,14 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, PanInfo } from 'framer-motion';
-import { useTravelBookStore, Scene, InterSceneRoute } from '@/stores/travelBookStore';
+import { useTravelBookStore, Scene, InterSceneRoute, CanvasPOI } from '@/stores/travelBookStore';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getTranslation } from '@/utils/i18n';
 
 interface WorldViewProps {
     onSceneDoubleClick?: (scene: Scene) => void;
     onAddScene?: () => void;
+    onSceneTemplateClick?: () => void;
 }
 
 // 交通图标映射
@@ -20,7 +21,26 @@ const transportIcons: Record<InterSceneRoute['transportType'], string> = {
     ship: '🚢',
 };
 
-const WorldView: React.FC<WorldViewProps> = ({ onSceneDoubleClick, onAddScene }) => {
+// 计算场景的天数
+const calculateSceneDays = (scene: Scene): number => {
+    if (!scene.startDate || !scene.endDate) return 0;
+    
+    const start = new Date(scene.startDate);
+    const end = new Date(scene.endDate);
+    const timeDiff = end.getTime() - start.getTime();
+    const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    return dayDiff + 1; // 包含起止日期
+};
+
+// 统计不同类型的POI数量
+const countPOICategories = (pois: CanvasPOI[]): Record<string, number> => {
+    return pois.reduce((counts, poi) => {
+        counts[poi.category] = (counts[poi.category] || 0) + 1;
+        return counts;
+    }, {} as Record<string, number>);
+};
+
+const WorldView: React.FC<WorldViewProps> = ({ onSceneDoubleClick, onAddScene, onSceneTemplateClick }) => {
     const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 500 });
     const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -106,23 +126,28 @@ const WorldView: React.FC<WorldViewProps> = ({ onSceneDoubleClick, onAddScene })
             ref={canvasRef}
             className="relative w-full h-full min-h-[450px] rounded-2xl overflow-hidden bg-slate-50 select-none"
         >
-            {/* 全局样式定义 */}
-            <style jsx global>{`
-                @keyframes flow {
-                    from { stroke-dashoffset: 24; }
-                    to { stroke-dashoffset: 0; }
-                }
-                .animate-flow {
-                    animation: flow 1s linear infinite;
-                }
-                @keyframes breathe {
-                    0%, 100% { opacity: 0.3; }
-                    50% { opacity: 0.6; }
-                }
-                .animate-breathe {
-                    animation: breathe 3s ease-in-out infinite;
-                }
-            `}</style>
+            {/* 全局样式定义 - 使用内联样式替代jsx语法 */}
+            <div className="animate-flow">
+                {/* This element exists solely to define the CSS variables and animations */}
+                <style>
+                    {`
+                        @keyframes flow {
+                            from { stroke-dashoffset: 24; }
+                            to { stroke-dashoffset: 0; }
+                        }
+                        .animate-flow {
+                            animation: flow 1s linear infinite;
+                        }
+                        @keyframes breathe {
+                            0%, 100% { opacity: 0.3; }
+                            50% { opacity: 0.6; }
+                        }
+                        .animate-breathe {
+                            animation: breathe 3s ease-in-out infinite;
+                        }
+                    `}
+                </style>
+            </div>
 
             {/* 性能优化的背景网格：使用 CSS radial-gradient 替代大量 div */}
             <div
@@ -230,12 +255,19 @@ const WorldView: React.FC<WorldViewProps> = ({ onSceneDoubleClick, onAddScene })
                                 <span className={`text-[10px] font-medium tracking-tight text-violet-500`}>
                                     {String(index + 1).padStart(2, '0')}
                                 </span>
-                                {/* POI 计数 Badge */}
-                                {scene.pois.length > 0 && (
-                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600`}>
-                                        {scene.pois.length}
+                                {/* 统计信息 Badges */}
+                                <div className="flex gap-1">
+                                    {/* 天数统计 */}
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600`}>
+                                        {calculateSceneDays(scene)}天
                                     </span>
-                                )}
+                                    {/* POI 计数 Badge */}
+                                    {scene.pois.length > 0 && (
+                                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600`}>
+                                            {scene.pois.length}点
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             {/* 嵌入式圆形图片/图标容器 */}
@@ -263,28 +295,80 @@ const WorldView: React.FC<WorldViewProps> = ({ onSceneDoubleClick, onAddScene })
                                 <h3 className={`text-sm font-medium truncate w-full text-violet-700`}>
                                     {scene.name}
                                 </h3>
+                                {/* 日期信息 */}
+                                {scene.startDate && scene.endDate && (
+                                    <div className="text-[9px] text-slate-500 mt-1">
+                                        {new Date(scene.startDate).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                                        {' - '}
+                                        {new Date(scene.endDate).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                                    </div>
+                                )}
+                                
+                                {/* POI分类统计 */}
+                                {scene.pois.length > 0 && (
+                                    <div className="flex flex-wrap justify-center gap-1 mt-1">
+                                        {Object.entries(countPOICategories(scene.pois)).map(([category, count]) => (
+                                            <span key={category} className="text-[8px] px-1 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                                {category === 'accommodation' && '🏨'}
+                                                {category === 'sightseeing' && '🏛️'}
+                                                {category === 'food' && '🍽️'}
+                                                {category === 'entertainment' && '🎭'}
+                                                {category === 'shopping' && '🛍️'}
+                                                {category === 'transportation' && '🚆'}
+                                                {count}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </motion.div>
                 );
             })}
 
-            {/* 添加场景按钮 */}
-            {onAddScene && (
+            {/* 场景管理按钮组 */}
+            <div className="absolute bottom-6 right-6 flex space-x-3">
+                {/* 场景模板按钮 */}
                 <button
-                    onClick={onAddScene}
-                    className="absolute bottom-6 right-6 w-12 h-12 rounded-full bg-white hover:bg-slate-50 text-slate-600 shadow-lg hover:shadow-xl border border-slate-100 flex items-center justify-center transition-all duration-200 active:scale-95"
+                    onClick={() => onSceneTemplateClick?.()}
+                    className="w-12 h-12 rounded-full bg-white hover:bg-slate-50 text-slate-600 shadow-lg hover:shadow-xl border border-slate-100 flex items-center justify-center transition-all duration-200 active:scale-95"
+                    title="场景模板"
                 >
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                 </button>
-            )}
+                
+                {/* 添加场景按钮 */}
+                {onAddScene && (
+                    <button
+                        onClick={onAddScene}
+                        className="w-12 h-12 rounded-full bg-white hover:bg-slate-50 text-slate-600 shadow-lg hover:shadow-xl border border-slate-100 flex items-center justify-center transition-all duration-200 active:scale-95"
+                        title="添加场景"
+                    >
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+                )}
+            </div>
 
             {/* 空状态 */}
             {scenes.length === 0 && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none">
-                    <p className="text-sm font-medium">{t('canvas.worldViewHint')}</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+                    <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center text-3xl mb-4">
+                        🗺️
+                    </div>
+                    <h3 className="text-lg font-medium text-slate-600 mb-1">{t('canvas.noScenesTitle')}</h3>
+                    <p className="text-sm text-slate-500 mb-6 text-center">{t('canvas.noScenesDescription')}</p>
+                    {onAddScene && (
+                        <button
+                            onClick={onAddScene}
+                            className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                        >
+                            {t('canvas.addFirstScene')}
+                        </button>
+                    )}
                 </div>
             )}
         </div>

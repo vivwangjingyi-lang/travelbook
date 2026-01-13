@@ -35,23 +35,27 @@ export default function Collection() {
   const [poiToView, setPoiToView] = useState<POI | null>(null);
 
   const pois = currentBook?.pois || [];
+  const scenes = currentBook?.scenes || [];
   const [selectedCategory, setSelectedCategory] = useState<POICategory | 'all'>('all');
+  const [selectedScene, setSelectedScene] = useState<string | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [groupByScene, setGroupByScene] = useState(false);
 
   // Sorting options
   type SortOption = 'name-asc' | 'name-desc' | 'time-asc' | 'time-desc';
   const [sortOption, setSortOption] = useState<SortOption>('name-asc');
 
-  // Filter POIs based on selected category and search term
+  // Filter POIs based on selected category, scene and search term
   const filteredPOIs = useMemo(() => {
     return pois.filter(poi => {
       const matchesCategory = selectedCategory === 'all' || poi.category === selectedCategory;
+      const matchesScene = selectedScene === 'all' || (poi.sceneIds && poi.sceneIds.includes(selectedScene));
       const matchesSearch = searchTerm === '' ||
         poi.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         poi.notes?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCategory && matchesSearch;
+      return matchesCategory && matchesScene && matchesSearch;
     });
-  }, [pois, selectedCategory, searchTerm]);
+  }, [pois, selectedCategory, selectedScene, searchTerm]);
 
   // Sort filtered POIs
   const sortedPOIs = useMemo(() => {
@@ -70,6 +74,47 @@ export default function Collection() {
       }
     });
   }, [filteredPOIs, sortOption]);
+
+  // Group POIs by scene
+  const groupedPOIs = useMemo(() => {
+    if (!groupByScene) return null;
+
+    const groups: Record<string, POI[]> = {};
+    
+    // Add scene groups
+    scenes.forEach(scene => {
+      groups[scene.id] = [];
+    });
+    
+    // Add POIs to their respective scene groups
+    sortedPOIs.forEach(poi => {
+      if (poi.sceneIds && poi.sceneIds.length > 0) {
+        // Add POI to all its scene groups
+        const addedToGroup = poi.sceneIds.some(sceneId => {
+          if (groups[sceneId]) {
+            groups[sceneId].push(poi);
+            return true;
+          }
+          return false;
+        });
+        
+        // If POI wasn't added to any group, add to ungrouped
+        if (!addedToGroup) {
+          if (!groups['ungrouped']) {
+            groups['ungrouped'] = [];
+          }
+          groups['ungrouped'].push(poi);
+        }
+      } else {
+        if (!groups['ungrouped']) {
+          groups['ungrouped'] = [];
+        }
+        groups['ungrouped'].push(poi);
+      }
+    });
+    
+    return groups;
+  }, [groupByScene, sortedPOIs, scenes]);
 
   // Calculate category counts based on filtered POIs
   const categoryCounts = useMemo(() => {
@@ -197,22 +242,77 @@ export default function Collection() {
             </div>
 
             {/* Filter Chips */}
-            <div className="flex flex-wrap gap-2 overflow-x-auto pb-2 no-scrollbar pl-1">
-              {(['all', 'accommodation', 'sightseeing', 'food', 'entertainment', 'shopping', 'transportation'] as const).map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-in-out whitespace-nowrap ${selectedCategory === cat
-                    ? 'bg-indigo-600 text-white shadow-lg scale-105'
-                    : 'bg-white/60 border border-white/40 text-gray-700 shadow-sm hover:bg-white/80 hover:shadow-md'
-                    }`}
-                >
-                  {t(`category.${cat}`)}
-                  <span className={`text-xs ml-1 ${selectedCategory === cat ? 'opacity-100' : 'opacity-60'}`}>
-                    {categoryCounts[cat]}
-                  </span>
-                </button>
-              ))}
+            <div className="space-y-4">
+              {/* Category Filters */}
+              <div className="flex flex-wrap gap-2 overflow-x-auto pb-2 no-scrollbar pl-1">
+                {(['all', 'accommodation', 'sightseeing', 'food', 'entertainment', 'shopping', 'transportation'] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-in-out whitespace-nowrap ${selectedCategory === cat
+                      ? 'bg-indigo-600 text-white shadow-lg scale-105'
+                      : 'bg-white/60 border border-white/40 text-gray-700 shadow-sm hover:bg-white/80 hover:shadow-md'
+                      }`}
+                  >
+                    {t(`category.${cat}`)}
+                    <span className={`text-xs ml-1 ${selectedCategory === cat ? 'opacity-100' : 'opacity-60'}`}>
+                      {categoryCounts[cat]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              
+              {/* Scene Filters */}
+              {scenes.length > 0 && (
+                <div className="flex flex-wrap gap-2 overflow-x-auto pb-2 no-scrollbar pl-1">
+                  <button
+                    key="all"
+                    onClick={() => setSelectedScene('all')}
+                    className={`flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-in-out whitespace-nowrap ${selectedScene === 'all'
+                      ? 'bg-violet-600 text-white shadow-lg scale-105'
+                      : 'bg-white/60 border border-white/40 text-gray-700 shadow-sm hover:bg-white/80 hover:shadow-md'
+                      }`}
+                  >
+                    {t('collection.allScenes')}
+                    <span className={`text-xs ml-1 ${selectedScene === 'all' ? 'opacity-100' : 'opacity-60'}`}>
+                      {pois.length}
+                    </span>
+                  </button>
+                  {scenes.map((scene) => {
+                    const scenePoiCount = pois.filter(poi => poi.sceneIds && poi.sceneIds.includes(scene.id)).length;
+                    return (
+                      <button
+                        key={scene.id}
+                        onClick={() => setSelectedScene(scene.id)}
+                        className={`flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-in-out whitespace-nowrap ${selectedScene === scene.id
+                          ? 'bg-violet-600 text-white shadow-lg scale-105'
+                          : 'bg-white/60 border border-white/40 text-gray-700 shadow-sm hover:bg-white/80 hover:shadow-md'
+                          }`}
+                      >
+                        {scene.name}
+                        <span className={`text-xs ml-1 ${selectedScene === scene.id ? 'opacity-100' : 'opacity-60'}`}>
+                          {scenePoiCount}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {/* Group By Scene Toggle */}
+              {scenes.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={groupByScene}
+                      onChange={(e) => setGroupByScene(e.target.checked)}
+                      className="w-4 h-4 text-violet-600 rounded border-gray-300 focus:ring-violet-500"
+                    />
+                    <span className="text-sm text-gray-700">{t('collection.groupByScene')}</span>
+                  </label>
+                </div>
+              )}
             </div>
           </div>
 
@@ -235,33 +335,80 @@ export default function Collection() {
                   {t('collection.showingPOIs').replace('{count}', filteredPOIs.length.toString())}
                 </div>
 
-                <motion.div
-                  layout
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                >
+                {groupedPOIs ? (
                   <AnimatePresence mode="popLayout">
-                    {sortedPOIs.map((poi) => (
-                      <div key={poi.id}>
-                        <POICard
-                          poi={poi}
-                          parentName={poi.parentId ? pois.find(p => p.id === poi.parentId)?.name : undefined}
-                          onView={(poi) => {
-                            setPoiToView(poi);
-                            setShowDetailModal(true);
-                          }}
-                          onEdit={(poi) => {
-                            setPoiToEdit(poi);
-                            setIsEditModalOpen(true);
-                          }}
-                          onDelete={(id) => {
-                            setPoiToDelete(id);
-                            setShowDeleteModal(true);
-                          }}
-                        />
-                      </div>
-                    ))}
+                    <motion.div layout className="space-y-8">
+                      {Object.entries(groupedPOIs).map(([sceneId, groupPOIs]) => {
+                        if (groupPOIs.length === 0) return null;
+                        
+                        const scene = scenes.find(s => s.id === sceneId);
+                        const groupTitle = scene ? scene.name : t('collection.ungrouped');
+                        
+                        return (
+                          <motion.div key={sceneId} layout>
+                            <div className="flex items-center gap-2 mb-4">
+                              <h3 className="text-xl font-semibold text-slate-800">{groupTitle}</h3>
+                              <span className="text-sm text-slate-500">({groupPOIs.length})</span>
+                            </div>
+                            <motion.div
+                              layout
+                              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                            >
+                              {groupPOIs.map((poi) => (
+                                <div key={poi.id}>
+                                  <POICard
+                                    poi={poi}
+                                    parentName={poi.parentId ? pois.find(p => p.id === poi.parentId)?.name : undefined}
+                                    onView={(poi) => {
+                                      setPoiToView(poi);
+                                      setShowDetailModal(true);
+                                    }}
+                                    onEdit={(poi) => {
+                                      setPoiToEdit(poi);
+                                      setIsEditModalOpen(true);
+                                    }}
+                                    onDelete={(id) => {
+                                      setPoiToDelete(id);
+                                      setShowDeleteModal(true);
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </motion.div>
+                          </motion.div>
+                        );
+                      })}
+                    </motion.div>
                   </AnimatePresence>
-                </motion.div>
+                ) : (
+                  <motion.div
+                    layout
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  >
+                    <AnimatePresence mode="popLayout">
+                      {sortedPOIs.map((poi) => (
+                        <div key={poi.id}>
+                          <POICard
+                            poi={poi}
+                            parentName={poi.parentId ? pois.find(p => p.id === poi.parentId)?.name : undefined}
+                            onView={(poi) => {
+                              setPoiToView(poi);
+                              setShowDetailModal(true);
+                            }}
+                            onEdit={(poi) => {
+                              setPoiToEdit(poi);
+                              setIsEditModalOpen(true);
+                            }}
+                            onDelete={(id) => {
+                              setPoiToDelete(id);
+                              setShowDeleteModal(true);
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
               </>
             )}
           </div>

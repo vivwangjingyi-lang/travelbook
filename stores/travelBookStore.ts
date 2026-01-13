@@ -14,7 +14,7 @@ export interface POI {
   notes?: string;
   createdAt: string;
   parentId?: string;
-  sceneId?: string; // 所属场景ID
+  sceneIds?: string[]; // 所属场景ID数组，支持跨场景复用
 }
 
 export interface CanvasPOI extends POI {
@@ -75,8 +75,8 @@ export interface Scene {
   x: number;          // 世界地图上的 X 坐标
   y: number;          // 世界地图上的 Y 坐标
   color?: string;     // 主题色
-  startDate?: string; // 该场景的开始日期（可选）
-  endDate?: string;   // 该场景的结束日期
+  startDate: string;  // 该场景的开始日期
+  endDate: string;    // 该场景的结束日期
   pois: CanvasPOI[];  // 该场景内的 POI 布局
 }
 
@@ -86,12 +86,24 @@ export interface InterSceneRoute {
   fromSceneId: string;
   toSceneId: string;
   transportType: 'flight' | 'train' | 'bus' | 'car' | 'ship';
-  description?: string; // 例如："航班 CA123"
-  departureTime?: string;
-  arrivalTime?: string;
+  departureDateTime: string;  // 出发日期时间
+  arrivalDateTime: string;    // 到达日期时间
   duration?: string;
   price?: string;
+  details?: string;           // 详细信息：航班号、车次等
+  notes?: string;             // 备注信息
 }
+
+// 场景模板接口 - 用于保存和复用场景
+export interface SceneTemplate {
+  id: string;
+  name: string;               // 模板名称
+  description?: string;       // 模板描述
+  color?: string;             // 主题色
+  samplePOIs: CanvasPOI[];    // 模板包含的POI示例
+  createdAt: string;          // 创建时间
+}
+
 
 export interface TravelBook {
   id: string;
@@ -121,6 +133,12 @@ interface TravelBookState {
   isLoading: boolean;
   error: string | null;
   isDirty: boolean;
+  sceneSwitchNotification: { sceneName: string; message: string; show: boolean } | null;
+  sceneTemplates: SceneTemplate[];
+  // 场景模板管理方法
+  saveSceneAsTemplate: (sceneId: string, templateName: string, description?: string) => void;
+  applySceneTemplate: (templateId: string, newSceneName: string, x: number, y: number) => void;
+  deleteSceneTemplate: (templateId: string) => void;
 
   // Book management
   initNewBook: () => void;
@@ -172,13 +190,21 @@ interface TravelBookState {
   toggleMemoPin: (memoId: string) => void;
 
   // Scene management (多画布)
-  addScene: (name: string, x?: number, y?: number) => string; // 返回 Scene ID
+  addScene: (name: string, x?: number, y?: number, startDate?: string, endDate?: string) => string; // 返回 Scene ID
   updateScene: (sceneId: string, updates: Partial<Scene>) => void;
   deleteScene: (sceneId: string) => void;
   switchScene: (sceneId: string) => void;
-  addSceneRoute: (fromSceneId: string, toSceneId: string, transportType: InterSceneRoute['transportType']) => void;
+  clearSceneSwitchNotification: () => void;
+  addSceneRoute: (fromSceneId: string, toSceneId: string, transportType: InterSceneRoute['transportType'], departureDateTime?: string, arrivalDateTime?: string) => void;
   deleteSceneRoute: (routeId: string) => void;
+  updateSceneRoute: (routeId: string, updates: Partial<InterSceneRoute>) => void;
+  getSceneRoutes: () => InterSceneRoute[];
+  getSceneRoutesByDate: () => InterSceneRoute[];
   migrateCanvasPoisToScene: () => void; // 将旧的 canvasPois 迁移到第一个 Scene
+  
+  // 场景级日期管理
+  getSceneDateForDay: (sceneId: string, day: number) => string;
+  getSceneStartDayInBook: (sceneId: string) => number;
 }
 
 // Create initial test data for development
@@ -347,6 +373,8 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   isLoading: false,
   error: null,
   isDirty: false,
+  sceneSwitchNotification: null,
+  sceneTemplates: [], // 场景模板列表
 
   // Book management
   // 错误处理方法
@@ -497,18 +525,54 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       const rawBooks = await loadFromStorage();
 
       // Data Migration / Sanitization: Ensure all new fields exist
-      const books = rawBooks.map(book => ({
-        ...book,
-        scenes: book.scenes || [],
-        activeSceneId: book.activeSceneId || '',
-        sceneRoutes: book.sceneRoutes || [],
-        // Ensure other arrays are also initialized
-        pois: book.pois || [],
-        canvasPois: book.canvasPois || [],
-        dailyItineraries: book.dailyItineraries || [],
-        memos: book.memos || [],
-        transportationTickets: book.transportationTickets || []
-      }));
+      const books = rawBooks.map(book => {
+        // 确保场景有开始和结束日期
+        const processedScenes = (book.scenes || []).map(scene => ({
+          ...scene,
+          startDate: scene.startDate || book.startDate,
+          endDate: scene.endDate || book.endDate,
+          pois: scene.pois || []
+        }));
+
+        // 确保场景间路线有完整的日期时间信息
+        const processedSceneRoutes = (book.sceneRoutes || []).map((route: any) => {
+          // 为旧数据提供默认日期时间（使用书籍的开始日期）
+          const defaultDateTime = book.startDate || new Date().toISOString();
+          return {
+            ...route,
+            departureDateTime: route.departureDateTime || route.departureTime || defaultDateTime,
+            arrivalDateTime: route.arrivalDateTime || route.arrivalTime || defaultDateTime,
+            // 迁移旧字段到新字段
+            details: route.details || route.description,
+            // 清理旧字段（可选）
+            // 不删除旧字段，保持向前兼容
+          };
+        });
+
+        // 确保 POI 有场景关联
+        const processedPois = (book.pois || []).map(poi => {
+          // 处理旧数据结构的兼容性问题
+          const oldPoi = poi as any;
+          const sceneId = oldPoi.sceneId || book.activeSceneId || '';
+          return {
+            ...poi,
+            sceneIds: poi.sceneIds || (sceneId ? [sceneId] : [])
+          };
+        });
+
+        return {
+          ...book,
+          scenes: processedScenes,
+          activeSceneId: book.activeSceneId || '',
+          sceneRoutes: processedSceneRoutes,
+          // Ensure other arrays are also initialized
+          pois: processedPois,
+          canvasPois: book.canvasPois || [],
+          dailyItineraries: book.dailyItineraries || [],
+          memos: book.memos || [],
+          transportationTickets: book.transportationTickets || []
+        };
+      });
 
       set({ books, isLoading: false });
     } catch (error) {
@@ -523,44 +587,25 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
   // POI management
   addPOI: (poi) => {
-    const newPOI: POI = {
-      ...poi,
-      id: nanoid(),
-      createdAt: new Date().toISOString()
-    };
-
     set((state) => {
       if (!state.currentBook) return state;
 
-      let updatedScenes = state.currentBook.scenes;
+      // 确定 POI 所属的场景数组
+      const targetSceneIds = poi.sceneIds || [state.currentBook.activeSceneId];
+      const newPOI: POI = {
+        ...poi,
+        id: nanoid(),
+        createdAt: new Date().toISOString(),
+        sceneIds: targetSceneIds
+      };
 
-      // 如果指定了 sceneId，自动添加到对应场景的画布中
-      if (poi.sceneId) {
-        updatedScenes = state.currentBook.scenes.map(scene => {
-          if (scene.id === poi.sceneId) {
-            // 创建一个新的 CanvasPOI
-            const newCanvasPOI: CanvasPOI = {
-              ...newPOI,
-              id: nanoid(),
-              // 随机位置或者中心位置 (避免重叠)
-              x: 400 + (Math.random() * 100 - 50),
-              y: 300 + (Math.random() * 100 - 50),
-              originalId: newPOI.id
-            };
-            return {
-              ...scene,
-              pois: [...scene.pois, newCanvasPOI]
-            };
-          }
-          return scene;
-        });
-      }
+      // 只更新主POI列表，不自动创建CanvasPOI
+      // CanvasPOI应该只在用户手动拖拽POI到画布上时才创建
 
       return {
         currentBook: {
           ...state.currentBook,
-          pois: [...state.currentBook.pois, newPOI],
-          scenes: updatedScenes
+          pois: [...state.currentBook.pois, newPOI]
         },
         isDirty: true
       };
@@ -568,17 +613,83 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   },
 
   updatePOI: (poiId, poi) => {
-    set((state) => ({
-      currentBook: state.currentBook
-        ? {
-          ...state.currentBook,
-          pois: state.currentBook.pois.map((p) =>
-            p.id === poiId ? { ...p, ...poi } : p
-          )
+    set((state) => {
+      if (!state.currentBook) return state;
+
+      // 获取当前POI的信息
+      const currentPOI = state.currentBook.pois.find(p => p.id === poiId);
+      if (!currentPOI) return state;
+
+      // 确定新的场景ID数组
+      const newSceneIds = poi.sceneIds || currentPOI.sceneIds || [];
+      const oldSceneIds = currentPOI.sceneIds || [];
+
+      // 更新主 POI 列表
+      const updatedMainPois = state.currentBook.pois.map((p) =>
+        p.id === poiId ? { ...p, ...poi, sceneIds: newSceneIds } : p
+      );
+
+      // 更新场景内的 POI
+      let updatedScenes = state.currentBook.scenes.map(scene => {
+        // 更新场景内的 POI（canvas POI）
+        const updatedPois = scene.pois.filter(canvasPoi => 
+          !(canvasPoi.originalId === poiId || canvasPoi.id === poiId)
+        );
+
+        return {
+          ...scene,
+          pois: updatedPois
+        };
+      });
+
+      // 向新场景添加 POI
+      newSceneIds.forEach(sceneId => {
+        const scene = updatedScenes.find(s => s.id === sceneId);
+        if (scene) {
+          // 获取当前POI的最新信息
+          const updatedPOI = updatedMainPois.find(p => p.id === poiId)!;
+          
+          // 创建新的 CanvasPOI
+          const canvasPOI: CanvasPOI = {
+            ...updatedPOI,
+            id: nanoid(),
+            x: 100 + Math.random() * 200,
+            y: 100 + Math.random() * 200,
+            originalId: updatedPOI.id
+          };
+
+          updatedScenes = updatedScenes.map(s =>
+            s.id === sceneId
+              ? { ...s, pois: [...s.pois, canvasPOI] }
+              : s
+          );
         }
-        : null,
-      isDirty: true
-    }));
+      });
+
+      // 更新旧的 canvasPois（向后兼容）
+      const updatedCanvasPois = state.currentBook.canvasPois.map(canvasPoi => {
+        if (canvasPoi.originalId === poiId || canvasPoi.id === poiId) {
+          return {
+            ...canvasPoi,
+            name: poi.name || canvasPoi.name,
+            category: poi.category || canvasPoi.category,
+            visitTime: poi.visitTime || canvasPoi.visitTime,
+            notes: poi.notes || canvasPoi.notes
+          };
+        }
+        return canvasPoi;
+      });
+
+      return {
+        currentBook: {
+          ...state.currentBook,
+          pois: updatedMainPois,
+          scenes: updatedScenes,
+          canvasPois: updatedCanvasPois
+        },
+        isDirty: true
+      };
+    });
   },
 
   deletePOI: (poiId) => {
@@ -593,8 +704,31 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         p.parentId === poiId ? { ...p, parentId: undefined } : p
       );
 
-      // 3. 同时也要处理 canvasPois 中的关联
-      const updatedCanvasPois = state.currentBook.canvasPois.map(p =>
+      // 3. 处理场景内的 POI (canvas POI)
+      const updatedScenes = state.currentBook.scenes.map(scene => {
+        // 删除与该 POI 相关的场景内 POI
+        const filteredPois = scene.pois.filter(canvasPoi =>
+          canvasPoi.originalId !== poiId && canvasPoi.id !== poiId
+        );
+
+        // 将以该 POI 为父级的场景内 POI 的 parentId 置空
+        const finalPois = filteredPois.map(canvasPoi =>
+          canvasPoi.parentId === poiId ? { ...canvasPoi, parentId: undefined } : canvasPoi
+        );
+
+        return {
+          ...scene,
+          pois: finalPois
+        };
+      });
+
+      // 4. 处理旧的 canvasPois（向后兼容）
+      const updatedCanvasPois = state.currentBook.canvasPois.filter(p =>
+        p.originalId !== poiId && p.id !== poiId
+      );
+
+      // 将以该 POI 为父级的旧 canvasPoi 的 parentId 置空
+      const finalCanvasPois = updatedCanvasPois.map(p =>
         p.parentId === poiId ? { ...p, parentId: undefined } : p
       );
 
@@ -602,7 +736,8 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         currentBook: {
           ...state.currentBook,
           pois: finalPOIs,
-          canvasPois: updatedCanvasPois
+          scenes: updatedScenes,
+          canvasPois: finalCanvasPois
         },
         isDirty: true
       };
@@ -734,10 +869,43 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         };
       }
 
+      // 找到活动场景
+      const activeScene = state.currentBook.scenes.find(s => s.id === activeSceneId);
+      if (!activeScene) return state;
+
+      // 创建新的CanvasPOI
       const newPoi: CanvasPOI = { ...poi, id: nanoid() };
+
+      // 处理父子关系：更新parentId以指向正确的CanvasPOI
+      if (newPoi.parentId) {
+        // 查找具有匹配originalId的CanvasPOI作为父节点
+        const parentPoi = activeScene.pois.find(p => p.originalId === newPoi.parentId);
+        if (parentPoi) {
+          // 更新新POI的parentId为父节点的CanvasPOI ID
+          newPoi.parentId = parentPoi.id;
+        }
+        // 如果找不到匹配的父节点，暂时保留原始parentId
+        // 不清除，以便后续添加父节点时能识别
+      }
+
+      // 将处理好的新POI添加到数组中
+      let updatedPois = [...activeScene.pois, newPoi];
+
+      // 检查新添加的POI是否是其他已存在POI的父节点
+      // 如果是，更新这些子节点的parentId
+      const childrenPois = activeScene.pois.filter(p => p.parentId === newPoi.originalId);
+      if (childrenPois.length > 0) {
+        updatedPois = updatedPois.map(p => {
+          if (childrenPois.some(child => child.id === p.id)) {
+            return { ...p, parentId: newPoi.id };
+          }
+          return p;
+        });
+      }
+
       const updatedScenes = state.currentBook.scenes.map(scene => {
         if (scene.id === activeSceneId) {
-          return { ...scene, pois: [...scene.pois, newPoi] };
+          return { ...scene, pois: updatedPois };
         }
         return scene;
       });
@@ -1139,7 +1307,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   },
 
   // Scene management (多画布)
-  addScene: (name, x = 100, y = 100) => {
+  addScene: (name, x = 100, y = 100, startDate?: string, endDate?: string) => {
     const sceneId = nanoid();
     set((state) => {
       if (!state.currentBook) return state;
@@ -1149,7 +1317,9 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         name,
         x,
         y,
-        pois: []
+        pois: [],
+        startDate: startDate || state.currentBook.startDate,
+        endDate: endDate || state.currentBook.endDate
       };
 
       const updatedScenes = [...state.currentBook.scenes, newScene];
@@ -1186,9 +1356,35 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
     set((state) => {
       if (!state.currentBook) return state;
 
+      // 删除场景
       const updatedScenes = state.currentBook.scenes.filter(s => s.id !== sceneId);
+      
+      // 删除与该场景相关的场景间路线
       const updatedRoutes = state.currentBook.sceneRoutes.filter(
         r => r.fromSceneId !== sceneId && r.toSceneId !== sceneId
+      );
+
+      // 更新主 POI 列表：移除与该场景关联的 POI 的场景ID
+      const updatedPois = state.currentBook.pois.map(poi => {
+        // 处理新的场景ID数组格式
+        if (poi.sceneIds && Array.isArray(poi.sceneIds)) {
+          // 从场景ID数组中移除已删除的场景ID
+          const updatedSceneIds = poi.sceneIds.filter(id => id !== sceneId);
+          return { ...poi, sceneIds: updatedSceneIds };
+        }
+        // 处理旧的单一场景ID格式（向后兼容）
+        // 如果存在旧的sceneId属性，将其转换为数组格式
+        if ('sceneId' in poi && poi.sceneId === sceneId) {
+          const { sceneId: _, ...rest } = poi as any;
+          return { ...rest, sceneIds: [] };
+        }
+        return poi;
+      });
+
+      // 更新旧的 canvasPois（向后兼容）：移除与该场景相关的 POI
+      const updatedCanvasPois = state.currentBook.canvasPois.filter(poi => 
+        ('sceneId' in poi && poi.sceneId !== sceneId) || 
+        ('sceneIds' in poi && (!poi.sceneIds || !poi.sceneIds.includes(sceneId)))
       );
 
       // 如果删除的是当前活动场景，切换到第一个场景
@@ -1197,32 +1393,218 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         newActiveSceneId = updatedScenes.length > 0 ? updatedScenes[0].id : '';
       }
 
+      // 如果切换到了新的活动场景，更新当前天数
+      let updatedCurrentDay = state.currentDay;
+      if (newActiveSceneId && newActiveSceneId !== sceneId) {
+        // 计算新场景的起始天数
+        const bookStartDate = new Date(state.currentBook.startDate);
+        const newScene = updatedScenes.find(s => s.id === newActiveSceneId);
+        if (newScene) {
+          const sceneStartDate = new Date(newScene.startDate);
+          const diffTime = sceneStartDate.getTime() - bookStartDate.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          updatedCurrentDay = Math.max(1, diffDays + 1);
+        }
+      } else if (!newActiveSceneId) {
+        // 如果没有场景了，重置为第一天
+        updatedCurrentDay = 1;
+      }
+
       return {
         currentBook: {
           ...state.currentBook,
+          pois: updatedPois,
           scenes: updatedScenes,
           sceneRoutes: updatedRoutes,
-          activeSceneId: newActiveSceneId
+          activeSceneId: newActiveSceneId,
+          canvasPois: updatedCanvasPois
         },
+        currentDay: updatedCurrentDay,
         isDirty: true
       };
     });
+  },
+
+  // 计算给定场景中某一天的实际日期
+  getSceneDateForDay: (sceneId: string, day: number): string => {
+    const { currentBook } = get();
+    if (!currentBook) return '';
+
+    const scene = currentBook.scenes.find(s => s.id === sceneId);
+    if (!scene) return '';
+
+    const startDate = new Date(scene.startDate);
+    const targetDate = new Date(startDate);
+    targetDate.setDate(startDate.getDate() + day - 1);
+    return targetDate.toISOString().split('T')[0];
+  },
+
+  // 获取当前场景的第一天是整个旅行的第几天
+  getSceneStartDayInBook: (sceneId: string): number => {
+    const { currentBook } = get();
+    if (!currentBook) return 1;
+
+    const scene = currentBook.scenes.find(s => s.id === sceneId);
+    if (!scene) return 1;
+
+    const bookStartDate = new Date(currentBook.startDate);
+    const sceneStartDate = new Date(scene.startDate);
+    const diffTime = sceneStartDate.getTime() - bookStartDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(1, diffDays + 1);
   },
 
   switchScene: (sceneId) => {
     set((state) => {
       if (!state.currentBook) return state;
 
+      const scene = state.currentBook.scenes.find(s => s.id === sceneId);
+      if (!scene) return state;
+
+      // 计算场景在整个旅行中的起始天数
+      const bookStartDate = new Date(state.currentBook.startDate);
+      const sceneStartDate = new Date(scene.startDate);
+      const diffTime = sceneStartDate.getTime() - bookStartDate.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const sceneStartDayInBook = Math.max(1, diffDays + 1);
+
       return {
         currentBook: {
           ...state.currentBook,
           activeSceneId: sceneId
+        },
+        currentDay: sceneStartDayInBook, // 切换场景时将当前天数设置为场景的第一天
+        sceneSwitchNotification: {
+          sceneName: scene.name,
+          message: `已切换到「${scene.name}」场景`,
+          show: true
         }
+      };
+    });
+
+    // 3秒后自动隐藏通知
+    setTimeout(() => {
+      set((state) => ({
+        sceneSwitchNotification: null
+      }));
+    }, 3000);
+  },
+
+  // 清除场景切换通知
+  clearSceneSwitchNotification: () => {
+    set({ sceneSwitchNotification: null });
+  },
+
+  // 场景模板管理方法
+  saveSceneAsTemplate: (sceneId: string, templateName: string, description?: string) => {
+    set((state) => {
+      if (!state.currentBook) return state;
+
+      const scene = state.currentBook.scenes.find(s => s.id === sceneId);
+      if (!scene) return state;
+
+      // 创建模板数据，清除不必要的信息
+      const template: SceneTemplate = {
+        id: nanoid(),
+        name: templateName,
+        description,
+        color: scene.color,
+        samplePOIs: scene.pois.map(poi => ({
+          ...poi,
+          id: nanoid(), // 为模板POI生成新ID
+          originalId: poi.originalId
+        })),
+        createdAt: new Date().toISOString()
+      };
+
+      const updatedTemplates = [...state.sceneTemplates, template];
+      return {
+        sceneTemplates: updatedTemplates
       };
     });
   },
 
-  addSceneRoute: (fromSceneId, toSceneId, transportType) => {
+  applySceneTemplate: (templateId: string, newSceneName: string, x: number, y: number) => {
+    set((state) => {
+      if (!state.currentBook) return state;
+
+      const template = state.sceneTemplates.find(t => t.id === templateId);
+      if (!template) return state;
+
+      // 创建新场景
+      const sceneId = nanoid();
+      const newScene: Scene = {
+        id: sceneId,
+        name: newSceneName,
+        x,
+        y,
+        color: template.color,
+        pois: template.samplePOIs.map(poi => ({
+          ...poi,
+          id: nanoid() // 为新场景中的POI生成新ID
+        })),
+        startDate: state.currentBook.startDate,
+        endDate: state.currentBook.endDate
+      };
+
+      // 创建主POI列表中的条目
+      const newMainPOIs = template.samplePOIs.map(poi => {
+        const newPoiId = nanoid();
+        const mainPOI: POI = {
+          id: newPoiId,
+          name: poi.name,
+          category: poi.category,
+          visitTime: poi.visitTime,
+          notes: poi.notes,
+          createdAt: new Date().toISOString(),
+          sceneIds: [sceneId]
+        };
+        return mainPOI;
+      });
+
+      // 更新新场景中的POI，使其指向主POI列表中的正确ID
+      const updatedScenePOIs = newScene.pois.map((poi, index) => ({
+        ...poi,
+        originalId: newMainPOIs[index].id
+      }));
+
+      newScene.pois = updatedScenePOIs;
+
+      const updatedScenes = [...state.currentBook.scenes, newScene];
+      const updatedMainPOIs = [...state.currentBook.pois, ...newMainPOIs];
+
+      return {
+        currentBook: {
+          ...state.currentBook,
+          scenes: updatedScenes,
+          activeSceneId: sceneId, // 切换到新创建的场景
+          pois: updatedMainPOIs
+        },
+        isDirty: true,
+        sceneSwitchNotification: {
+          sceneName: newSceneName,
+          message: `已使用模板创建新场景「${newSceneName}」`,
+          show: true
+        }
+      };
+    });
+
+    // 3秒后自动隐藏通知
+    setTimeout(() => {
+      set((state) => ({ sceneSwitchNotification: null }));
+    }, 3000);
+  },
+
+  deleteSceneTemplate: (templateId: string) => {
+    set((state) => {
+      const updatedTemplates = state.sceneTemplates.filter(t => t.id !== templateId);
+      return {
+        sceneTemplates: updatedTemplates
+      };
+    });
+  },
+
+  addSceneRoute: (fromSceneId, toSceneId, transportType, departureDateTime = new Date().toISOString(), arrivalDateTime = new Date().toISOString()) => {
     set((state) => {
       if (!state.currentBook) return state;
 
@@ -1230,7 +1612,9 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         id: nanoid(),
         fromSceneId,
         toSceneId,
-        transportType
+        transportType,
+        departureDateTime,
+        arrivalDateTime
       };
 
       return {
@@ -1257,30 +1641,129 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
     });
   },
 
-  migrateCanvasPoisToScene: () => {
+  // 更新场景间路线
+  updateSceneRoute: (routeId: string, updates: Partial<InterSceneRoute>) => {
     set((state) => {
       if (!state.currentBook) return state;
-
-      // 如果已有场景或没有旧的 canvasPois，则不迁移
-      if (state.currentBook.scenes.length > 0 || state.currentBook.canvasPois.length === 0) {
-        return state;
-      }
-
-      const defaultSceneName = state.currentBook.destination || '默认目的地';
-      const defaultSceneId = nanoid();
-
-      const migratedScene: Scene = {
-        id: defaultSceneId,
-        name: defaultSceneName,
-        x: 300,
-        y: 200,
-        pois: [...state.currentBook.canvasPois]
-      };
 
       return {
         currentBook: {
           ...state.currentBook,
-          scenes: [migratedScene],
+          sceneRoutes: state.currentBook.sceneRoutes.map(route => 
+            route.id === routeId ? { ...route, ...updates } : route
+          )
+        },
+        isDirty: true
+      };
+    });
+  },
+
+  // 获取所有场景间路线
+  getSceneRoutes: () => {
+    const { currentBook } = get();
+    return currentBook?.sceneRoutes || [];
+  },
+
+  // 获取按日期排序的场景间路线
+  getSceneRoutesByDate: () => {
+    const { currentBook } = get();
+    if (!currentBook || !currentBook.sceneRoutes) return [];
+
+    // 按出发日期时间排序
+    return [...currentBook.sceneRoutes].sort((a, b) => {
+      const dateA = new Date(a.departureDateTime).getTime();
+      const dateB = new Date(b.departureDateTime).getTime();
+      return dateA - dateB;
+    });
+  },
+
+  migrateCanvasPoisToScene: () => {
+    set((state) => {
+      if (!state.currentBook) return state;
+
+      // 只有当有旧的 canvasPois 且它们尚未被迁移时才执行迁移
+      if (state.currentBook.canvasPois.length === 0) {
+        return state;
+      }
+
+      // 获取或创建默认场景
+      let defaultSceneId = state.currentBook.activeSceneId;
+      let defaultSceneName = state.currentBook.destination || '默认目的地';
+      let scenes = [...state.currentBook.scenes];
+
+      // 如果没有活动场景或场景列表为空，创建新场景
+      if (!defaultSceneId || scenes.length === 0) {
+        defaultSceneId = nanoid();
+        const newScene: Scene = {
+          id: defaultSceneId,
+          name: defaultSceneName,
+          x: 300,
+          y: 200,
+          pois: [],
+          startDate: state.currentBook.startDate,
+          endDate: state.currentBook.endDate
+        };
+        scenes = [newScene];
+      }
+
+      // 迁移 canvasPois 到默认场景
+      const canvasPoisMap = new Map<string, CanvasPOI>();
+      const migratedPois: CanvasPOI[] = state.currentBook.canvasPois.map(poi => {
+        const migratedPoi: CanvasPOI = {
+          ...poi,
+          sceneIds: [defaultSceneId] // 使用场景ID数组
+        };
+        canvasPoisMap.set(poi.id, migratedPoi);
+        return migratedPoi;
+      });
+
+      // 处理 parentId 映射：确保 parentId 指向同一个场景内的 POI
+      const poisWithCorrectParentId = migratedPois.map(poi => {
+        if (poi.parentId) {
+          // 检查父级 POI 是否存在于同一迁移列表中
+          const parentPoi = canvasPoisMap.get(poi.parentId);
+          if (parentPoi) {
+            return {
+              ...poi,
+              parentId: parentPoi.id
+            };
+          }
+        }
+        return poi;
+      });
+
+      // 更新场景列表，不自动迁移所有POI到场景中
+      // 只保留场景结构，POI应该由用户手动拖拽到画布上
+      const updatedScenes = scenes.map(scene => {
+        if (scene.id === defaultSceneId) {
+          return {
+            ...scene,
+            pois: [] // 清空迁移的POI，让用户手动添加
+          };
+        }
+        return scene;
+      });
+
+      // 更新主 POI 列表，添加 sceneIds
+      const updatedMainPois = state.currentBook.pois.map(poi => {
+        // 检查是否有对应的 canvasPoi
+        const hasCanvasPoi = migratedPois.some(canvasPoi => 
+          canvasPoi.originalId === poi.id || canvasPoi.id === poi.id
+        );
+        if (hasCanvasPoi && (!poi.sceneIds || poi.sceneIds.length === 0)) {
+          return {
+            ...poi,
+            sceneIds: [defaultSceneId]
+          };
+        }
+        return poi;
+      });
+
+      return {
+        currentBook: {
+          ...state.currentBook,
+          pois: updatedMainPois,
+          scenes: updatedScenes,
           activeSceneId: defaultSceneId,
           canvasPois: [] // 清空旧数据
         },

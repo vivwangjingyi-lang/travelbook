@@ -20,7 +20,7 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
   const [visitTime, setVisitTime] = useState('');
   const [notes, setNotes] = useState('');
   const [parentId, setParentId] = useState<string | undefined>(undefined);
-  const [sceneId, setSceneId] = useState<string | undefined>(undefined); // 新增场景ID状态
+  const [sceneIds, setSceneIds] = useState<string[]>([]); // 新增场景ID数组状态
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Reset form fields
@@ -30,7 +30,7 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
     setVisitTime('');
     setNotes('');
     setParentId(undefined);
-    setSceneId(undefined);
+    setSceneIds([]);
     setErrors({});
   };
 
@@ -41,7 +41,7 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
       setVisitTime(initialData.visitTime);
       setNotes(initialData.notes || '');
       setParentId(initialData.parentId);
-      setSceneId(initialData.sceneId); // 初始化场景ID
+      setSceneIds(initialData.sceneIds || []); // 初始化场景ID数组
     } else {
       resetForm();
     }
@@ -64,7 +64,7 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
         visitTime,
         notes,
         parentId,
-        sceneId, // 提交场景ID
+        sceneIds, // 提交场景ID数组
         createdAt: initialData?.createdAt || new Date().toISOString(),
       });
       if (!isEditMode) resetForm();
@@ -87,22 +87,29 @@ export default function POIForm({ initialData, onSubmit, onCancel, isEditMode = 
         {/* 场景选择 (如果有场景数据) */}
         {scenes && scenes.length > 0 && (
           <div className="space-y-2">
-            <label htmlFor="scene" className="block text-sm font-medium text-slate-700">Destination (Mapped to Canvas)</label>
-            <select
-              id="scene"
-              value={sceneId || ''}
-              onChange={(e) => setSceneId(e.target.value || undefined)}
-              className="w-full px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
-            >
-              <option value="">-- Select Destination --</option>
+            <label className="block text-sm font-medium text-slate-700">Destinations (Mapped to Canvas)</label>
+            <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-lg p-3 max-h-60 overflow-y-auto">
               {scenes.map(scene => (
-                <option key={scene.id} value={scene.id}>
-                  {scene.name}
-                </option>
+                <label key={scene.id} className="flex items-center gap-2 py-2 px-2 rounded hover:bg-slate-50 transition-colors cursor-pointer">
+                  <input
+                    type="checkbox"
+                    value={scene.id}
+                    checked={sceneIds.includes(scene.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSceneIds([...sceneIds, scene.id]);
+                      } else {
+                        setSceneIds(sceneIds.filter(id => id !== scene.id));
+                      }
+                    }}
+                    className="w-4 h-4 text-violet-600 rounded border-gray-300 focus:ring-violet-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700">{scene.name}</span>
+                </label>
               ))}
-            </select>
+            </div>
             <p className="text-xs text-slate-500">
-              Selecting a destination will automatically add this POI to that destination's map.
+              Select destinations to add this POI to their respective maps.
             </p>
           </div>
         )}

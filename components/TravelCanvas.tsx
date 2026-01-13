@@ -13,6 +13,7 @@ interface TravelCanvasProps {
   selectedPoiIds?: string[];
   orderedPois?: DailyPOI[];
   routes?: Route[];
+  canvasPOIs?: CanvasPOI[]; // Optional prop to override internal POI source
 }
 
 const TravelCanvas: React.FC<TravelCanvasProps> = ({
@@ -21,7 +22,8 @@ const TravelCanvas: React.FC<TravelCanvasProps> = ({
   onPOIClick,
   selectedPoiIds = [],
   orderedPois = [],
-  routes = []
+  routes = [],
+  canvasPOIs: externalCanvasPOIs // Optional external POI source
 }) => {
   const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 500 });
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -29,12 +31,23 @@ const TravelCanvas: React.FC<TravelCanvasProps> = ({
 
   // Local drag state
   const [dragInfo, setDragInfo] = useState<{ id: string | null; offset: { x: number; y: number } }>({ id: null, offset: { x: 0, y: 0 } });
-  const { currentBook, updateCanvasPOI, deleteCanvasPOI, getActiveScenePois, updateScenePOI } = useTravelBookStore();
+  const { currentBook, updateCanvasPOI, deleteCanvasPOI, getActiveScenePois, updateScenePOI, deleteScenePOI } = useTravelBookStore();
   const { language } = useLanguageStore();
 
   const t = (key: string) => getTranslation(key, language);
-  // 使用场景感知的 POI 获取方法
-  const canvasPOIs = getActiveScenePois();
+  // 使用外部传入的POI或当前场景的POI
+  const canvasPOIs = externalCanvasPOIs || getActiveScenePois();
+  
+  // 调试信息 - 查看canvasPOIs的parentId关系
+  useEffect(() => {
+    console.log('Canvas POIs:', canvasPOIs);
+    canvasPOIs.forEach(poi => {
+      if (poi.parentId) {
+        const parent = canvasPOIs.find(p => p.id === poi.parentId);
+        console.log(`POI ${poi.name} (${poi.id}) has parent ${parent?.name} (${parent?.id})`);
+      }
+    });
+  }, [canvasPOIs]);
 
   useEffect(() => {
     const updateCanvasSize = () => {
@@ -104,8 +117,9 @@ const TravelCanvas: React.FC<TravelCanvasProps> = ({
 
   // Handle delete POI
   const handleDeletePoi = useCallback((poiId: string) => {
-    deleteCanvasPOI(poiId);
-  }, [deleteCanvasPOI]);
+    // 使用场景感知的删除方法
+    deleteScenePOI(poiId);
+  }, [deleteScenePOI]);
 
   // Get POI order
   const getPoiOrder = useCallback((poiId: string): number | undefined => {

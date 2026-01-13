@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import FloatingNavbar from "@/components/FloatingNavbar";
 import { useTravelBookStore, POI, Scene } from "@/stores/travelBookStore";
 import TravelCanvas from "@/components/TravelCanvas";
 import WorldView from "@/components/WorldView";
+import SceneTemplateManager from "@/components/SceneTemplateManager";
 import { useLanguageStore } from "@/stores/languageStore";
 import { getTranslation } from "@/utils/i18n";
 
@@ -15,22 +17,30 @@ export default function Canvas() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // 全局状态管理
-  const { currentBook, addCanvasPOI, switchScene, addScene } = useTravelBookStore();
+  const { currentBook, addScenePOI, switchScene, addScene, sceneSwitchNotification, clearSceneSwitchNotification } = useTravelBookStore();
   const { language } = useLanguageStore();
 
   // 翻译辅助函数
   const t = (key: string) => getTranslation(key, language);
 
   // 获取当前旅行书的POI数据
-  const availablePOIs = currentBook?.pois || [];
+  const allPOIs = currentBook?.pois || [];
   const scenes = currentBook?.scenes || [];
   const activeSceneId = currentBook?.activeSceneId || '';
+
+  // 过滤出属于当前场景的POI（使用sceneIds数组）
+  const availablePOIs = allPOIs.filter(poi => 
+    poi.sceneIds && poi.sceneIds.includes(activeSceneId)
+  );
 
   // 视图模式: 'world' | 'scene'
   const [viewMode, setViewMode] = useState<'world' | 'scene'>(scenes.length > 0 ? 'world' : 'scene');
 
   // Selected POIs state
   const [selectedPoiIds, setSelectedPoiIds] = useState<string[]>([]);
+
+  // 场景模板管理器状态
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
 
   // Handle POI click for selection
   const handlePoiClick = (poi: any, e: React.MouseEvent) => {
@@ -72,8 +82,8 @@ export default function Canvas() {
     const clampedX = Math.max(20, Math.min(x, rect.width - 20));
     const clampedY = Math.max(20, Math.min(y, rect.height - 20));
 
-    // 添加新POI到画布
-    addCanvasPOI({
+    // 添加新POI到画布（使用场景感知的方法）
+    addScenePOI({
       name: poi.name,
       category: poi.category,
       x: clampedX,
@@ -117,6 +127,11 @@ export default function Canvas() {
     addScene(newSceneName, x, y);
   };
 
+  // 处理场景模板点击
+  const handleSceneTemplateClick = () => {
+    setShowTemplateManager(true);
+  };
+
   return (
     <div className="min-h-screen p-8 pb-20 font-[family-name:var(--font-geist-sans)]" onClick={handleCanvasClick}>
       {/* Floating Navigation */}
@@ -146,7 +161,22 @@ export default function Canvas() {
         </header>
 
         {/* Main Content */}
-        <main className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-xl shadow-xl p-8">
+        <main className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-xl shadow-xl p-8 relative">
+          {/* 场景切换通知 */}
+          {sceneSwitchNotification && sceneSwitchNotification.show && (
+            <motion.div
+              className="fixed top-8 right-8 bg-violet-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-50"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 50 }}
+              transition={{ duration: 0.3 }}
+              onClick={clearSceneSwitchNotification}
+            >
+              <span className="text-xl">📍</span>
+              <span>{sceneSwitchNotification.message}</span>
+              <button className="ml-2 text-white hover:text-slate-200">×</button>
+            </motion.div>
+          )}
           {viewMode === 'world' ? (
             /* 世界视图 */
             <div className="min-h-[500px]">
@@ -156,6 +186,7 @@ export default function Canvas() {
               <WorldView
                 onSceneDoubleClick={handleSceneDoubleClick}
                 onAddScene={handleAddScene}
+                onSceneTemplateClick={handleSceneTemplateClick}
               />
             </div>
           ) : (
@@ -174,18 +205,32 @@ export default function Canvas() {
 
                   {/* Scene Switcher Tabs */}
                   <div className="flex flex-wrap gap-2 bg-slate-100/50 p-1.5 rounded-full overflow-x-auto max-w-full custom-scrollbar">
-                    {scenes.map(scene => (
-                      <button
-                        key={scene.id}
-                        onClick={() => switchScene(scene.id)}
-                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${activeSceneId === scene.id
-                          ? 'bg-white text-slate-800 shadow-md ring-1 ring-slate-100'
-                          : 'text-slate-500 hover:bg-white/50 hover:text-slate-700'
-                          }`}
-                      >
-                        {scene.name}
-                      </button>
-                    ))}
+                    {scenes.map(scene => {
+                      const isActive = scene.id === activeSceneId;
+                      return (
+                        <motion.button
+                          key={scene.id}
+                          onClick={() => switchScene(scene.id)}
+                          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${isActive
+                            ? 'bg-white text-slate-800 shadow-md ring-1 ring-slate-100'
+                            : 'text-slate-500 hover:bg-white/50 hover:text-slate-700'
+                            }`}
+                          initial={false}
+                          animate={{
+                            scale: isActive ? 1.05 : 1,
+                            opacity: isActive ? 1 : 0.8,
+                          }}
+                          whileHover={{ scale: 1.05, opacity: 1 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={{
+                            duration: 0.2,
+                            ease: "easeOut"
+                          }}
+                        >
+                          {scene.name}
+                        </motion.button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -211,7 +256,12 @@ export default function Canvas() {
                         return 0;
                       })
                       .map((poi: POI) => {
-                        const isOnCanvas = currentBook?.canvasPois.some(canvasPoi => canvasPoi.name === poi.name) || false;
+                        // 使用originalId进行精确匹配，而不是name
+                        // 检查POI是否已在当前场景的画布上
+                        const isOnCanvas = currentBook?.scenes.some(scene => 
+                          scene.id === activeSceneId && 
+                          scene.pois.some(canvasPoi => canvasPoi.originalId === poi.id)
+                        ) || false;
                         const isParent = availablePOIs.some(p => p.parentId === poi.id);
                         const isChild = !!poi.parentId;
 
@@ -275,12 +325,7 @@ export default function Canvas() {
                       }
                     }}
                     onDragOver={allowDrop}
-                    onDragEnter={(e) => {
-                      e.currentTarget.classList.add('ring-2', 'ring-green-500');
-                    }}
-                    onDragLeave={(e) => {
-                      e.currentTarget.classList.remove('ring-2', 'ring-green-500');
-                    }}
+
                     className="relative transition-all duration-300 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
                     tabIndex={0}
                     role="region"
@@ -327,6 +372,13 @@ export default function Canvas() {
           </div>
         </main>
       </div>
+
+      {/* 场景模板管理器 */}
+      <SceneTemplateManager
+        isOpen={showTemplateManager}
+        onClose={() => setShowTemplateManager(false)}
+        onTemplateApplied={() => setViewMode('scene')}
+      />
     </div>
   );
 }

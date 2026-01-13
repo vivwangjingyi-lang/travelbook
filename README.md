@@ -39,6 +39,8 @@ TravelBook is an elegant travel planning application that helps users create, ma
 - **Scene Creation**: Easily add new scenes to your journey
 - Drag and drop to arrange POIs
 - Create a visual map of your journey destinations
+- **Parent-Child POI Relationships**: Define hierarchical relationships between POIs (e.g., theme park → attraction), automatically establishing parent-child connections regardless of addition order
+- **Visual Parent-Child Indicators**: Automatic connection lines between parent and child POIs on the canvas
 
 #### Chapter 4: Plot
 - Plan daily itineraries
@@ -48,6 +50,9 @@ TravelBook is an elegant travel planning application that helps users create, ma
 - Route information displayed in separate component below canvas
 - Optimized layer management with visible order badges and adjusted parent/child indicators
 - Improved POI spacing and visibility with z-index optimization
+- **Scene Switching**: Switch between different travel scenes in the Select Points of Interest interface
+- **Cross-Scene POI Selection**: Select POIs from different scenes while maintaining a cumulative list of selected POIs
+- **Scene Selection UI**: Intuitive scene selection interface with visual feedback
 
 #### Chapter 5: Epilogue
 - Generate personalized journey summaries
@@ -190,4 +195,4 @@ See `Roadmap.md` for planned features and improvements.
 
 ---
 
-*Last Updated: 2026-01-13*
+*Last Updated: 2026-01-14*

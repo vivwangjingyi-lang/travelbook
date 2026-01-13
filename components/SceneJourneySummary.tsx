@@ -24,6 +24,17 @@ const sceneColors = [
     'bg-purple-500',
 ];
 
+// 计算场景的天数
+const calculateSceneDays = (scene: Scene): number => {
+    if (!scene.startDate || !scene.endDate) return 0;
+    
+    const start = new Date(scene.startDate);
+    const end = new Date(scene.endDate);
+    const timeDiff = end.getTime() - start.getTime();
+    const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    return dayDiff + 1; // 包含起止日期
+};
+
 interface SceneJourneySummaryProps {
     onSceneClick?: (scene: Scene) => void;
 }
@@ -97,9 +108,12 @@ const SceneJourneySummary: React.FC<SceneJourneySummaryProps> = ({ onSceneClick 
                                 className={`px-4 py-2 rounded-full text-white text-sm font-medium shadow-md hover:shadow-lg transition-all hover:scale-105 ${colorClass}`}
                             >
                                 {scene.name}
+                                <span className="ml-2 bg-white/30 px-1.5 py-0.5 rounded-full text-xs">
+                                    {calculateSceneDays(scene)}天
+                                </span>
                                 {scene.pois.length > 0 && (
-                                    <span className="ml-2 bg-white/30 px-1.5 py-0.5 rounded-full text-xs">
-                                        {scene.pois.length}
+                                    <span className="ml-1 bg-white/30 px-1.5 py-0.5 rounded-full text-xs">
+                                        {scene.pois.length}点
                                     </span>
                                 )}
                             </button>

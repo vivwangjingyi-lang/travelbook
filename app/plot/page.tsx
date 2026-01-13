@@ -13,7 +13,7 @@ import { getTranslation } from "@/utils/i18n";
 
 export default function Plot() {
   const router = useRouter();
-  const { currentBook, setCurrentDay, ensureDailyItinerary, togglePoiSelection, removePoiSelection, reorderDailyPois, addRoute, deleteRoute, updateBook } = useTravelBookStore();
+  const { currentBook, setCurrentDay, ensureDailyItinerary, togglePoiSelection, removePoiSelection, reorderDailyPois, addRoute, deleteRoute, updateBook, getActiveScenePois } = useTravelBookStore();
   const { language } = useLanguageStore();
 
   // 翻译辅助函数
@@ -25,6 +25,16 @@ export default function Plot() {
   const [transportation, setTransportation] = useState<TransportationType>('walk');
   const [duration, setDuration] = useState('');
   const [selectedDay, setSelectedDay] = useState<number>(1);
+  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
+
+  // 获取所有场景
+  const scenes = currentBook?.scenes || [];
+  // 如果没有选中场景，默认选择第一个场景
+  useEffect(() => {
+    if (scenes.length > 0 && !selectedSceneId) {
+      setSelectedSceneId(scenes[0].id);
+    }
+  }, [scenes.length, selectedSceneId]);
 
   // Calculate number of days for the trip
   const calculateDays = () => {
@@ -67,8 +77,8 @@ export default function Plot() {
     }
   };
 
-  // 获取当前旅行书的POI数据
-  const canvasPOIs = currentBook?.canvasPois || [];
+  // 根据选中的场景获取POI数据
+  const canvasPOIs = currentBook?.scenes.find(scene => scene.id === selectedSceneId)?.pois || [];
   const dailyItinerary = currentBook?.dailyItineraries.find(i => i.day === selectedDay) || null;
   const selectedPoiIds = dailyItinerary?.selectedPoiIds || [];
   const orderedPois = dailyItinerary?.orderedPois || [];
@@ -142,9 +152,9 @@ export default function Plot() {
     return orderedPois.find(op => op.poiId === poiId)?.order;
   };
 
-  // 找到POI的CanvasPOI信息
+  // 找到POI的CanvasPOI信息（从所有场景中查找）
   const getCanvasPoi = (poiId: string): CanvasPOI | undefined => {
-    return canvasPOIs.find(cp => cp.id === poiId);
+    return currentBook?.scenes.flatMap(scene => scene.pois).find(cp => cp.id === poiId);
   };
 
   return (
@@ -194,6 +204,28 @@ export default function Plot() {
             </p>
           </div>
 
+          {/* Scene Switcher */}
+          {currentPhase === 'selection' && scenes.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-medium mb-3 text-slate-800 text-center">
+                {t('plot.selectScene')}
+              </h3>
+              <div className="flex justify-center items-center gap-2 flex-wrap">
+                {scenes.map(scene => (
+                  <button
+                    key={scene.id}
+                    onClick={() => setSelectedSceneId(scene.id)}
+                    className={`px-4 py-2 rounded-full shadow-md transition-all duration-300 ${selectedSceneId === scene.id
+                      ? 'bg-slate-800 text-white shadow-lg scale-105'
+                      : 'bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white/90 hover:shadow-lg'}`}
+                  >
+                    {scene.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Canvas */}
             <div className="lg:col-span-2">
@@ -202,6 +234,7 @@ export default function Plot() {
                 selectedPoiIds={selectedPoiIds}
                 orderedPois={orderedPois}
                 routes={routes}
+                canvasPOIs={canvasPOIs} // Pass all POIs from all scenes
                 onPOIClick={(poi) => {
                   if (currentPhase === 'selection') {
                     togglePoiSelection(selectedDay, poi.id);

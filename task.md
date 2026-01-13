@@ -4,19 +4,31 @@
 - [x] **PRD 重构**
     - [x] 重写 PRD 框架，增加版本控制、用户画像、非功能需求等章节
     - [x] 细化 World View 与 Scene 管理的功能定义
-- [ ] **Scene View 界面修复**
+    - [x] 更新 PRD 以反映最新功能（父子 POI 关系、场景切换）
+- [x] **文档更新**
+    - [x] 更新 README.md 以反映最新功能
+    - [x] 更新 implementation_plan.md 以反映最新功能
+    - [x] 更新 task.md 以反映最新任务状态
+
+## 待办任务：功能优化与验证
+- [ ] **功能验证**
+    - [ ] 验证场景创建与视图切换
+    - [ ] 验证父子 POI 关系功能
+    - [ ] 验证 Plot 页面场景切换功能
+
+## 已完成任务
+- [x] **Scene View 界面修复**
     - [x] 修复 `layout.tsx` 中的 Hydration Error
     - [x] 解决空场景无法进入 World View 的问题
     - [x] 启用 `WorldView` 中的“添加场景”功能
-    - [ ] 验证场景创建与视图切换
-
-## 待办任务：Canvas 侧边栏优化
-- [ ] **Canvas 侧边栏改进**
-    - [ ] 实现 POI 列表的分组排序 (父节点 + 子节点)
-    - [ ] 在侧边栏 POI 卡片上添加父子节点标识 (P/L)
-    - [ ] 验证排序和标识的正确性
-
-## 已完成任务
+- [x] **Canvas 父子 POI 关系**
+    - [x] 改进 `addScenePOI` 函数以支持父子 POI 关系
+    - [x] 确保不限制父子节点添加顺序
+    - [x] 自动建立父子节点连线
+- [x] **Plot 页面场景切换**
+    - [x] 在 Select Points of Interest 界面添加场景选择器
+    - [x] 实现场景切换逻辑
+    - [x] 修复 POI 显示问题（从所有场景中查找 POI）
 - [x] Collection 页面 UI/UX 优化
     - [x] Modal 表单
     - [x] 响应式网格
