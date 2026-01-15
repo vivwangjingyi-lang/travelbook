@@ -105,6 +105,15 @@ export const TravelIcons = {
       <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
     </svg>
   ),
+
+  // 护照图标
+  Passport: ({ className = "w-8 h-8" }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M5 8h14M9 12h6M9 16h4" />
+      <circle cx="12" cy="12" r="1.5" strokeDasharray="1 1" />
+    </svg>
+  ),
 };
 
 // ========================================

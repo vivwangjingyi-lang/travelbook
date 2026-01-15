@@ -15,6 +15,13 @@ TravelBook is an elegant travel planning application that helps users create, ma
 - View all travel books in a beautiful library interface
 - Multi-language support (English and Chinese)
 
+### 🔐 User Authentication & Cloud Sync (New!)
+- **Email/Password Authentication**: Secure login with email verification
+- **Cloud Synchronization**: All data automatically synced to Supabase
+- **Multi-Device Support**: Access your travel books from any device
+- **Local-First Architecture**: Works offline with automatic sync when online
+- **Data Security**: Row Level Security (RLS) ensures data privacy
+
 ### 🗺️ Journey Planning Workflow
 
 #### Chapter 0: Introduction
@@ -68,9 +75,10 @@ TravelBook is an elegant travel planning application that helps users create, ma
 - Confirmation prompts for unsaved changes
 
 ### 💾 Data Storage
-- IndexedDB for large storage capacity (50MB+)
+- **Supabase PostgreSQL** for cloud storage and sync
+- IndexedDB for local-first offline support (50MB+)
 - Fallback to localStorage for backward compatibility
-- Automatic data persistence
+- Automatic data persistence and synchronization
 
 ## Technology Stack
 
@@ -80,7 +88,8 @@ TravelBook is an elegant travel planning application that helps users create, ma
 - **Zustand 5.0.9** - Lightweight state management
 - **Framer Motion** - Animation library
 - **Tailwind CSS** - Utility-first CSS framework
-- **IndexedDB** - Browser storage solution
+- **Supabase** - Backend as a Service (PostgreSQL, Auth, Realtime)
+- **IndexedDB** - Browser storage solution (local-first)
 - **LocalStorage** - Fallback storage mechanism
 
 ## Project Structure
@@ -181,6 +190,23 @@ yarn build
 - Pin important memos for quick access
 - Search and filter memos
 
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Import the project in [Vercel](https://vercel.com)
+3. Add environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Deploy!
+
+### Supabase Configuration
+
+After deployment, update Supabase Authentication settings:
+- **Site URL**: Your Vercel domain (e.g., `https://your-app.vercel.app`)
+- **Redirect URLs**: Add `https://your-app.vercel.app/auth/callback`
+
 ## License
 
 MIT License - feel free to use this project for personal or commercial purposes.
@@ -195,4 +221,4 @@ See `Roadmap.md` for planned features and improvements.
 
 ---
 
-*Last Updated: 2026-01-14*
+*Last Updated: 2026-01-15*

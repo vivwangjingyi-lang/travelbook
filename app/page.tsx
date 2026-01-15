@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTravelBookStore } from "@/stores/travelBookStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useLanguageStore } from "@/stores/languageStore";
 import { getTranslation } from "@/utils/i18n";
 import {
@@ -16,6 +17,7 @@ import Background from "@/components/Background";
 export default function Home() {
   const router = useRouter();
   const { loadBooks, initNewBook } = useTravelBookStore();
+  const { user, profile, signOut } = useAuthStore();
   const { language, setLanguage, isEnglish, isChinese } = useLanguageStore();
   const [currentPhrase, setCurrentPhrase] = useState(0);
 
@@ -50,37 +52,69 @@ export default function Home() {
     <div className="min-h-screen overflow-hidden relative">
       {/* 背景组件 */}
       <Background />
-      
-      {/* 语言切换 - 固定右上角 */}
+
+      {/* 顶部工具栏 - 包含语言切换和用户登录 */}
       <motion.div
-        className="fixed top-6 right-8 z-50"
+        className="fixed top-6 right-8 z-50 flex items-center gap-4"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
       >
+        {/* 用户状态 */}
         <div className="glass rounded-full px-1.5 py-1.5 shadow-lg flex items-center">
-          <motion.button
-            onClick={() => setLanguage('en')}
-            className={`px-3 py-1.5 rounded-full transition-all duration-300 text-xs font-medium ${isEnglish()
-              ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md'
-              : 'text-slate-600 hover:bg-white/50'
-              }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            EN
-          </motion.button>
-          <motion.button
-            onClick={() => setLanguage('zh')}
-            className={`px-3 py-1.5 rounded-full transition-all duration-300 text-xs font-medium ${isChinese()
-              ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md'
-              : 'text-slate-600 hover:bg-white/50'
-              }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            中
-          </motion.button>
+          {user ? (
+            <div className="flex items-center gap-2 px-3 py-1.5">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold">
+                {profile?.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase()}
+              </div>
+              <span className="text-xs font-medium text-slate-700 max-w-[80px] truncate">
+                {profile?.username || user.email?.split('@')[0]}
+              </span>
+              <button
+                onClick={() => signOut()}
+                className="ml-1 text-[10px] text-slate-400 hover:text-red-500 transition-colors"
+                title={t('auth.logout')}
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <motion.button
+              onClick={() => router.push('/login')}
+              className="px-4 py-1.5 rounded-full text-xs font-medium text-slate-600 hover:bg-white/50 transition-all"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {t('auth.login')}
+            </motion.button>
+          )}
+
+          <div className="w-px h-4 bg-slate-200 mx-1" />
+
+          <div className="flex items-center">
+            <motion.button
+              onClick={() => setLanguage('en')}
+              className={`px-3 py-1.5 rounded-full transition-all duration-300 text-[10px] font-medium ${isEnglish()
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-white/30'
+                }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              EN
+            </motion.button>
+            <motion.button
+              onClick={() => setLanguage('zh')}
+              className={`px-3 py-1.5 rounded-full transition-all duration-300 text-[10px] font-medium ${isChinese()
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-white/30'
+                }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              中
+            </motion.button>
+          </div>
         </div>
       </motion.div>
 

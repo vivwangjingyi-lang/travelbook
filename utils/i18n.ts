@@ -312,6 +312,18 @@ export const translations: Translations = {
     'error.requiredFieldsTitle': 'Required Fields Missing',
     'error.requiredFieldsMessage': 'Please fill in the following required fields before saving:\n• Journey Name\n• Destination\n• Start Date',
     'error.discardOrFill': 'You can either fill in the required fields or discard your changes.',
+    // 鉴权
+    'auth.login': 'Login',
+    'auth.signup': 'Sign Up',
+    'auth.email': 'Email',
+    'auth.password': 'Password',
+    'auth.noAccount': "Don't have an account?",
+    'auth.hasAccount': 'Already have an account?',
+    'auth.loggingIn': 'Logging in...',
+    'auth.signingUp': 'Signing up...',
+    'auth.logout': 'Logout',
+    'auth.profile': 'Profile',
+    'auth.welcome': 'Welcome back, {name}',
   },
   zh: {
     // 首页
@@ -615,6 +627,18 @@ export const translations: Translations = {
     'error.requiredFieldsTitle': '必填字段缺失',
     'error.requiredFieldsMessage': '请在保存前填写以下必填字段：\n• 旅程名称\n• 目的地\n• 开始日期',
     'error.discardOrFill': '您可以填写必填字段或放弃更改。',
+    // 鉴权
+    'auth.login': '登录',
+    'auth.signup': '注册',
+    'auth.email': '邮箱',
+    'auth.password': '密码',
+    'auth.noAccount': '没有账号？',
+    'auth.hasAccount': '已有账号？',
+    'auth.loggingIn': '登录中...',
+    'auth.signingUp': '注册中...',
+    'auth.logout': '退出登录',
+    'auth.profile': '个人资料',
+    'auth.welcome': '欢迎回来，{name}',
   },
 };
 

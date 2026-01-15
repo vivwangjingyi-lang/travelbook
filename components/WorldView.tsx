@@ -21,10 +21,20 @@ const transportIcons: Record<InterSceneRoute['transportType'], string> = {
     ship: '🚢',
 };
 
+// 场景分类图标映射
+const categoryIcons: Record<string, string> = {
+    beach: '🏖️',
+    city: '🏙️',
+    nature: '🌿',
+    mountain: '🚵',
+    culture: '🏛️',
+    other: '📍',
+};
+
 // 计算场景的天数
 const calculateSceneDays = (scene: Scene): number => {
     if (!scene.startDate || !scene.endDate) return 0;
-    
+
     const start = new Date(scene.startDate);
     const end = new Date(scene.endDate);
     const timeDiff = end.getTime() - start.getTime();
@@ -257,10 +267,6 @@ const WorldView: React.FC<WorldViewProps> = ({ onSceneDoubleClick, onAddScene, o
                                 </span>
                                 {/* 统计信息 Badges */}
                                 <div className="flex gap-1">
-                                    {/* 天数统计 */}
-                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600`}>
-                                        {calculateSceneDays(scene)}天
-                                    </span>
                                     {/* POI 计数 Badge */}
                                     {scene.pois.length > 0 && (
                                         <span className={`text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600`}>
@@ -273,13 +279,16 @@ const WorldView: React.FC<WorldViewProps> = ({ onSceneDoubleClick, onAddScene, o
                             {/* 嵌入式圆形图片/图标容器 */}
                             <div className="relative mb-3">
                                 <div
-                                    className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center text-xl shadow-inner border border-white"
+                                    className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center text-xl shadow-inner border border-white"
                                     style={{
                                         boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
                                     }}
                                 >
-                                    {/* 暂用 emoji，后续可替换为图片 */}
-                                    🏙️
+                                    {scene.image ? (
+                                        <img src={scene.image} alt={scene.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span>{categoryIcons[scene.category || 'other']}</span>
+                                    )}
                                 </div>
                                 {/* Active 发光光环 - 默认常亮 */}
                                 <div
@@ -295,15 +304,7 @@ const WorldView: React.FC<WorldViewProps> = ({ onSceneDoubleClick, onAddScene, o
                                 <h3 className={`text-sm font-medium truncate w-full text-violet-700`}>
                                     {scene.name}
                                 </h3>
-                                {/* 日期信息 */}
-                                {scene.startDate && scene.endDate && (
-                                    <div className="text-[9px] text-slate-500 mt-1">
-                                        {new Date(scene.startDate).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
-                                        {' - '}
-                                        {new Date(scene.endDate).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
-                                    </div>
-                                )}
-                                
+
                                 {/* POI分类统计 */}
                                 {scene.pois.length > 0 && (
                                     <div className="flex flex-wrap justify-center gap-1 mt-1">
@@ -338,7 +339,7 @@ const WorldView: React.FC<WorldViewProps> = ({ onSceneDoubleClick, onAddScene, o
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                 </button>
-                
+
                 {/* 添加场景按钮 */}
                 {onAddScene && (
                     <button

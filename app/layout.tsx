@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import Background from "../components/Background";
 import { ToastProvider } from "../components/Toast";
+import { AuthProvider } from "../providers/AuthProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,10 +37,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} antialiased min-h-screen`}
       >
         <ToastProvider>
-          <Background />
-          <div className="relative z-10">
-            {children}
-          </div>
+          <AuthProvider>
+            <Background />
+            <div className="relative z-10">
+              {children}
+            </div>
+          </AuthProvider>
         </ToastProvider>
       </body>
     </html>

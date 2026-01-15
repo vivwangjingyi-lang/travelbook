@@ -1,6 +1,8 @@
 import { create } from 'zustand';
-import { nanoid } from 'nanoid';
+import { generateId } from '@/utils/idGenerator';
 import { loadFromIndexedDB, saveToIndexedDB, isIndexedDBSupported } from '@/utils/indexedDBUtils';
+import { BackendService } from '@/services/backendService';
+import { supabase } from '@/lib/supabase';
 
 export type POICategory = 'accommodation' | 'sightseeing' | 'food' | 'entertainment' | 'shopping' | 'transportation';
 
@@ -75,9 +77,11 @@ export interface Scene {
   x: number;          // 世界地图上的 X 坐标
   y: number;          // 世界地图上的 Y 坐标
   color?: string;     // 主题色
-  startDate: string;  // 该场景的开始日期
-  endDate: string;    // 该场景的结束日期
+  startDate?: string; // 该场景的开始日期 (可选)
+  endDate?: string;   // 该场景的结束日期 (可选)
   pois: CanvasPOI[];  // 该场景内的 POI 布局
+  category?: string;  // 场景分类 (beach, city, etc.)
+  image?: string;     // 可选图片 URL
 }
 
 // 跨场景路线接口 - 代表城市间的交通
@@ -190,7 +194,7 @@ interface TravelBookState {
   toggleMemoPin: (memoId: string) => void;
 
   // Scene management (多画布)
-  addScene: (name: string, x?: number, y?: number, startDate?: string, endDate?: string) => string; // 返回 Scene ID
+  addScene: (name: string, x?: number, y?: number, category?: string, image?: string) => string; // 返回 Scene ID
   updateScene: (sceneId: string, updates: Partial<Scene>) => void;
   deleteScene: (sceneId: string) => void;
   switchScene: (sceneId: string) => void;
@@ -201,7 +205,7 @@ interface TravelBookState {
   getSceneRoutes: () => InterSceneRoute[];
   getSceneRoutesByDate: () => InterSceneRoute[];
   migrateCanvasPoisToScene: () => void; // 将旧的 canvasPois 迁移到第一个 Scene
-  
+
   // 场景级日期管理
   getSceneDateForDay: (sceneId: string, day: number) => string;
   getSceneStartDayInBook: (sceneId: string) => number;
@@ -388,7 +392,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
   initNewBook: () => {
     const newBook: TravelBook = {
-      id: nanoid(),
+      id: generateId(),
       title: "",
       description: "",
       startDate: "",
@@ -413,7 +417,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   /** @deprecated 使用 initNewBook() + saveBook() 代替 */
   createBook: (title, description, startDate, endDate) => {
     const newBook: TravelBook = {
-      id: nanoid(),
+      id: generateId(),
       title,
       description,
       startDate,
@@ -483,32 +487,46 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
     }));
   },
 
-  saveBook: () => {
-    set((state) => {
-      if (!state.currentBook) return state;
+  saveBook: async () => {
+    const { currentBook, books } = get();
+    if (!currentBook) return;
 
-      const isNewBook = !state.books.some(b => b.id === state.currentBook!.id);
-
-      let updatedBooks;
-      if (isNewBook) {
-        updatedBooks = [...state.books, state.currentBook!];
-      } else {
-        updatedBooks = state.books.map(b =>
-          b.id === state.currentBook!.id ? state.currentBook! : b
-        );
+    try {
+      // 1. 更新本地状态
+      const newBook = { ...currentBook, updated_at: new Date().toISOString() };
+      const updatedBooks = books.map((b) => (b.id === newBook.id ? newBook : b));
+      if (!updatedBooks.find((b) => b.id === newBook.id)) {
+        updatedBooks.push(newBook);
       }
 
-      // Save asynchronously
-      saveToStorage(updatedBooks).catch(error => {
-        console.error('Error saving book:', error);
+      set({
+        books: updatedBooks,
+        currentBook: newBook,
+        currentBookSnapshot: JSON.parse(JSON.stringify(newBook)), // Update snapshot
+        isDirty: false
       });
 
-      return {
-        books: updatedBooks,
-        currentBookSnapshot: JSON.parse(JSON.stringify(state.currentBook)),
-        isDirty: false
-      };
-    });
+      // 2. 保存到本地存储
+      if (isIndexedDBSupported()) {
+        await saveToIndexedDB(updatedBooks);
+      } else {
+        localStorage.setItem('travelbooks', JSON.stringify(updatedBooks));
+      }
+
+      // 3. 保存到云端（如果已登录）
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // 不等待云端保存完成，也不阻以此断流程（后台静默同步）
+        BackendService.saveBook(newBook).catch(err => {
+          console.error('Error saving to cloud:', err);
+          // TODO: 添加重试队列或错误提示
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Error saving book:', error);
+      // set({ error: error.message }); // Optional: show error to user
+    }
   },
 
   resetBook: () => {
@@ -519,69 +537,64 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   },
 
   loadBooks: async () => {
-    set({ isLoading: true, error: null });
-
+    set({ isLoading: true });
     try {
-      const rawBooks = await loadFromStorage();
+      // 1. 从本地存储加载（本地优先，确保离线可用）
+      let localBooks: TravelBook[] = [];
+      if (isIndexedDBSupported()) {
+        localBooks = await loadFromIndexedDB<TravelBook>();
+      } else {
+        const stored = localStorage.getItem('travelbooks');
+        localBooks = stored ? JSON.parse(stored) : [];
+      }
+      console.log('loadBooks: Loaded', localBooks.length, 'books from local storage');
 
-      // Data Migration / Sanitization: Ensure all new fields exist
-      const books = rawBooks.map(book => {
-        // 确保场景有开始和结束日期
-        const processedScenes = (book.scenes || []).map(scene => ({
-          ...scene,
-          startDate: scene.startDate || book.startDate,
-          endDate: scene.endDate || book.endDate,
-          pois: scene.pois || []
-        }));
+      // 数据迁移/清理
+      localBooks = localBooks.map(book => ({
+        ...book,
+        scenes: book.scenes || [],
+        activeSceneId: book.activeSceneId || (book.scenes && book.scenes.length > 0 ? book.scenes[0].id : '') || '',
+        pois: book.pois || [],
+        canvasPois: book.canvasPois || [],
+        sceneRoutes: book.sceneRoutes || [],
+        dailyItineraries: book.dailyItineraries || [],
+        memos: book.memos || [],
+        transportationTickets: book.transportationTickets || []
+      }));
 
-        // 确保场景间路线有完整的日期时间信息
-        const processedSceneRoutes = (book.sceneRoutes || []).map((route: any) => {
-          // 为旧数据提供默认日期时间（使用书籍的开始日期）
-          const defaultDateTime = book.startDate || new Date().toISOString();
-          return {
-            ...route,
-            departureDateTime: route.departureDateTime || route.departureTime || defaultDateTime,
-            arrivalDateTime: route.arrivalDateTime || route.arrivalTime || defaultDateTime,
-            // 迁移旧字段到新字段
-            details: route.details || route.description,
-            // 清理旧字段（可选）
-            // 不删除旧字段，保持向前兼容
-          };
-        });
+      // 2. 尝试从云端加载（仅当已登录时）
+      // 🔒 安全策略：不再盲目覆盖，而是进行智能合并
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        try {
+          const cloudBooks = await BackendService.loadBooks();
+          console.log('loadBooks: Loaded', cloudBooks.length, 'books from cloud');
 
-        // 确保 POI 有场景关联
-        const processedPois = (book.pois || []).map(poi => {
-          // 处理旧数据结构的兼容性问题
-          const oldPoi = poi as any;
-          const sceneId = oldPoi.sceneId || book.activeSceneId || '';
-          return {
-            ...poi,
-            sceneIds: poi.sceneIds || (sceneId ? [sceneId] : [])
-          };
-        });
+          // 智能合并：将云端独有的书籍添加到本地列表
+          // 但不覆盖本地已有的书籍（保护本地数据完整性）
+          const localBookIds = new Set(localBooks.map(b => b.id));
+          const newBooksFromCloud = cloudBooks.filter(cb => !localBookIds.has(cb.id));
 
-        return {
-          ...book,
-          scenes: processedScenes,
-          activeSceneId: book.activeSceneId || '',
-          sceneRoutes: processedSceneRoutes,
-          // Ensure other arrays are also initialized
-          pois: processedPois,
-          canvasPois: book.canvasPois || [],
-          dailyItineraries: book.dailyItineraries || [],
-          memos: book.memos || [],
-          transportationTickets: book.transportationTickets || []
-        };
-      });
+          if (newBooksFromCloud.length > 0) {
+            console.log('loadBooks: Found', newBooksFromCloud.length, 'new books from cloud');
+            localBooks = [...localBooks, ...newBooksFromCloud];
+            // 将合并后的数据同步回本地存储
+            if (isIndexedDBSupported()) {
+              await saveToIndexedDB(localBooks);
+            } else {
+              localStorage.setItem('travelbooks', JSON.stringify(localBooks));
+            }
+          }
+        } catch (cloudError) {
+          console.error('loadBooks: Error loading from cloud (using local data):', cloudError);
+          // 云端加载失败时，继续使用本地数据，不影响用户体验
+        }
+      }
 
-      set({ books, isLoading: false });
+      set({ books: localBooks, isLoading: false });
     } catch (error) {
-      console.error('Error loading books:', error);
-      set({
-        isLoading: false,
-        error: 'Failed to load travel books'
-        // 保留现有的books数组，避免在加载失败时丢失数据
-      });
+      console.error('loadBooks: Fatal error:', error);
+      set({ error: (error as Error).message, isLoading: false });
     }
   },
 
@@ -594,7 +607,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       const targetSceneIds = poi.sceneIds || [state.currentBook.activeSceneId];
       const newPOI: POI = {
         ...poi,
-        id: nanoid(),
+        id: generateId(),
         createdAt: new Date().toISOString(),
         sceneIds: targetSceneIds
       };
@@ -632,7 +645,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       // 更新场景内的 POI
       let updatedScenes = state.currentBook.scenes.map(scene => {
         // 更新场景内的 POI（canvas POI）
-        const updatedPois = scene.pois.filter(canvasPoi => 
+        const updatedPois = scene.pois.filter(canvasPoi =>
           !(canvasPoi.originalId === poiId || canvasPoi.id === poiId)
         );
 
@@ -648,11 +661,11 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         if (scene) {
           // 获取当前POI的最新信息
           const updatedPOI = updatedMainPois.find(p => p.id === poiId)!;
-          
+
           // 创建新的 CanvasPOI
           const canvasPOI: CanvasPOI = {
             ...updatedPOI,
-            id: nanoid(),
+            id: generateId(),
             x: 100 + Math.random() * 200,
             y: 100 + Math.random() * 200,
             originalId: updatedPOI.id
@@ -754,7 +767,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       // 创建新的CanvasPOI
       const newCanvasPOI: CanvasPOI = {
         ...poi,
-        id: nanoid(),
+        id: generateId(),
         originalId: poi.originalId || (poi as any).id // 优先使用已存在的 originalId，或从传入的 POI 对象中提取 id
       };
 
@@ -859,7 +872,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       const activeSceneId = state.currentBook.activeSceneId;
       if (!activeSceneId) {
         // 如果没有活动场景，添加到 canvasPois（向后兼容）
-        const newPoi: CanvasPOI = { ...poi, id: nanoid() };
+        const newPoi: CanvasPOI = { ...poi, id: generateId() };
         return {
           currentBook: {
             ...state.currentBook,
@@ -874,7 +887,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       if (!activeScene) return state;
 
       // 创建新的CanvasPOI
-      const newPoi: CanvasPOI = { ...poi, id: nanoid() };
+      const newPoi: CanvasPOI = { ...poi, id: generateId() };
 
       // 处理父子关系：更新parentId以指向正确的CanvasPOI
       if (newPoi.parentId) {
@@ -1163,7 +1176,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
       const newRoute: Route = {
         ...route,
-        id: nanoid()
+        id: generateId()
       };
 
       dailyItineraries[itineraryIndex] = {
@@ -1243,7 +1256,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       if (!state.currentBook) return state;
 
       const newMemo = {
-        id: nanoid(),
+        id: generateId(),
         title,
         content,
         date: new Date().toISOString(),
@@ -1307,19 +1320,21 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
   },
 
   // Scene management (多画布)
-  addScene: (name, x = 100, y = 100, startDate?: string, endDate?: string) => {
-    const sceneId = nanoid();
+  addScene: (name, x = 100, y = 100, category, image) => {
+    const sceneId = generateId();
     set((state) => {
       if (!state.currentBook) return state;
 
       const newScene: Scene = {
         id: sceneId,
         name,
-        x,
-        y,
+        x: x ?? 100,
+        y: y ?? 100,
         pois: [],
-        startDate: startDate || state.currentBook.startDate,
-        endDate: endDate || state.currentBook.endDate
+        category: category || 'city',
+        image: image,
+        startDate: state.currentBook.startDate,
+        endDate: state.currentBook.endDate
       };
 
       const updatedScenes = [...state.currentBook.scenes, newScene];
@@ -1358,7 +1373,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
       // 删除场景
       const updatedScenes = state.currentBook.scenes.filter(s => s.id !== sceneId);
-      
+
       // 删除与该场景相关的场景间路线
       const updatedRoutes = state.currentBook.sceneRoutes.filter(
         r => r.fromSceneId !== sceneId && r.toSceneId !== sceneId
@@ -1382,8 +1397,8 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       });
 
       // 更新旧的 canvasPois（向后兼容）：移除与该场景相关的 POI
-      const updatedCanvasPois = state.currentBook.canvasPois.filter(poi => 
-        ('sceneId' in poi && poi.sceneId !== sceneId) || 
+      const updatedCanvasPois = state.currentBook.canvasPois.filter(poi =>
+        ('sceneId' in poi && poi.sceneId !== sceneId) ||
         ('sceneIds' in poi && (!poi.sceneIds || !poi.sceneIds.includes(sceneId)))
       );
 
@@ -1399,7 +1414,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         // 计算新场景的起始天数
         const bookStartDate = new Date(state.currentBook.startDate);
         const newScene = updatedScenes.find(s => s.id === newActiveSceneId);
-        if (newScene) {
+        if (newScene && newScene.startDate) {
           const sceneStartDate = new Date(newScene.startDate);
           const diffTime = sceneStartDate.getTime() - bookStartDate.getTime();
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -1433,7 +1448,10 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
     const scene = currentBook.scenes.find(s => s.id === sceneId);
     if (!scene) return '';
 
-    const startDate = new Date(scene.startDate);
+    const startDateStr = scene.startDate || currentBook.startDate;
+    if (!startDateStr) return '';
+
+    const startDate = new Date(startDateStr);
     const targetDate = new Date(startDate);
     targetDate.setDate(startDate.getDate() + day - 1);
     return targetDate.toISOString().split('T')[0];
@@ -1448,7 +1466,10 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
     if (!scene) return 1;
 
     const bookStartDate = new Date(currentBook.startDate);
-    const sceneStartDate = new Date(scene.startDate);
+    const sceneStartDateStr = scene.startDate || currentBook.startDate;
+    if (!sceneStartDateStr) return 1;
+
+    const sceneStartDate = new Date(sceneStartDateStr);
     const diffTime = sceneStartDate.getTime() - bookStartDate.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return Math.max(1, diffDays + 1);
@@ -1463,7 +1484,8 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
       // 计算场景在整个旅行中的起始天数
       const bookStartDate = new Date(state.currentBook.startDate);
-      const sceneStartDate = new Date(scene.startDate);
+      const sceneStartDateStr = scene.startDate || state.currentBook.startDate;
+      const sceneStartDate = new Date(sceneStartDateStr);
       const diffTime = sceneStartDate.getTime() - bookStartDate.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       const sceneStartDayInBook = Math.max(1, diffDays + 1);
@@ -1505,13 +1527,13 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
       // 创建模板数据，清除不必要的信息
       const template: SceneTemplate = {
-        id: nanoid(),
+        id: generateId(),
         name: templateName,
         description,
         color: scene.color,
         samplePOIs: scene.pois.map(poi => ({
           ...poi,
-          id: nanoid(), // 为模板POI生成新ID
+          id: generateId(), // 为模板POI生成新ID
           originalId: poi.originalId
         })),
         createdAt: new Date().toISOString()
@@ -1532,7 +1554,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       if (!template) return state;
 
       // 创建新场景
-      const sceneId = nanoid();
+      const sceneId = generateId();
       const newScene: Scene = {
         id: sceneId,
         name: newSceneName,
@@ -1541,7 +1563,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
         color: template.color,
         pois: template.samplePOIs.map(poi => ({
           ...poi,
-          id: nanoid() // 为新场景中的POI生成新ID
+          id: generateId() // 为新场景中的POI生成新ID
         })),
         startDate: state.currentBook.startDate,
         endDate: state.currentBook.endDate
@@ -1549,7 +1571,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
       // 创建主POI列表中的条目
       const newMainPOIs = template.samplePOIs.map(poi => {
-        const newPoiId = nanoid();
+        const newPoiId = generateId();
         const mainPOI: POI = {
           id: newPoiId,
           name: poi.name,
@@ -1609,7 +1631,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       if (!state.currentBook) return state;
 
       const newRoute: InterSceneRoute = {
-        id: nanoid(),
+        id: generateId(),
         fromSceneId,
         toSceneId,
         transportType,
@@ -1649,7 +1671,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       return {
         currentBook: {
           ...state.currentBook,
-          sceneRoutes: state.currentBook.sceneRoutes.map(route => 
+          sceneRoutes: state.currentBook.sceneRoutes.map(route =>
             route.id === routeId ? { ...route, ...updates } : route
           )
         },
@@ -1693,7 +1715,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
 
       // 如果没有活动场景或场景列表为空，创建新场景
       if (!defaultSceneId || scenes.length === 0) {
-        defaultSceneId = nanoid();
+        defaultSceneId = generateId();
         const newScene: Scene = {
           id: defaultSceneId,
           name: defaultSceneName,
@@ -1747,7 +1769,7 @@ export const useTravelBookStore = create<TravelBookState>((set, get) => ({
       // 更新主 POI 列表，添加 sceneIds
       const updatedMainPois = state.currentBook.pois.map(poi => {
         // 检查是否有对应的 canvasPoi
-        const hasCanvasPoi = migratedPois.some(canvasPoi => 
+        const hasCanvasPoi = migratedPois.some(canvasPoi =>
           canvasPoi.originalId === poi.id || canvasPoi.id === poi.id
         );
         if (hasCanvasPoi && (!poi.sceneIds || poi.sceneIds.length === 0)) {

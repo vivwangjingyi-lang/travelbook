@@ -97,7 +97,7 @@ export default function Plot() {
 
   // 完成选择阶段，进入排序阶段
   const handleCompleteSelection = () => {
-    if (selectedPoiIds.length < 2) return;
+    if (selectedPoiIds.length < 1) return;
 
     // 初始化排序
     const initialOrder = selectedPoiIds.map((id, index) => ({
@@ -261,8 +261,8 @@ export default function Plot() {
                 <div className="mb-6">
                   <button
                     onClick={handleCompleteSelection}
-                    disabled={selectedPoiIds.length < 2}
-                    className={`w-full px-4 py-2 rounded-full shadow-lg transition-all duration-300 ${selectedPoiIds.length < 2
+                    disabled={selectedPoiIds.length < 1}
+                    className={`w-full px-4 py-2 rounded-full shadow-lg transition-all duration-300 ${selectedPoiIds.length < 1
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-slate-800 text-white hover:bg-slate-700 hover:shadow-xl'}`}
                   >

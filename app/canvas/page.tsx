@@ -8,6 +8,7 @@ import { useTravelBookStore, POI, Scene } from "@/stores/travelBookStore";
 import TravelCanvas from "@/components/TravelCanvas";
 import WorldView from "@/components/WorldView";
 import SceneTemplateManager from "@/components/SceneTemplateManager";
+import AddSceneModal from "@/components/AddSceneModal";
 import { useLanguageStore } from "@/stores/languageStore";
 import { getTranslation } from "@/utils/i18n";
 
@@ -29,7 +30,7 @@ export default function Canvas() {
   const activeSceneId = currentBook?.activeSceneId || '';
 
   // 过滤出属于当前场景的POI（使用sceneIds数组）
-  const availablePOIs = allPOIs.filter(poi => 
+  const availablePOIs = allPOIs.filter(poi =>
     poi.sceneIds && poi.sceneIds.includes(activeSceneId)
   );
 
@@ -41,6 +42,9 @@ export default function Canvas() {
 
   // 场景模板管理器状态
   const [showTemplateManager, setShowTemplateManager] = useState(false);
+
+  // 添加场景 Modal 状态
+  const [showAddSceneModal, setShowAddSceneModal] = useState(false);
 
   // Handle POI click for selection
   const handlePoiClick = (poi: any, e: React.MouseEvent) => {
@@ -118,13 +122,17 @@ export default function Canvas() {
     setViewMode('world');
   };
 
-  // 处理添加新场景
-  const handleAddScene = () => {
-    const newSceneName = `${t('canvas.newScene') || 'New Scene'} ${scenes.length + 1}`;
-    // Random position within sensible bounds or center
-    const x = 400 + (Math.random() * 200 - 100);
-    const y = 250 + (Math.random() * 100 - 50);
-    addScene(newSceneName, x, y);
+  // 处理从 Modal 添加新场景
+  const handlePerformAddScene = (name: string, category: string, image?: string) => {
+    // 中心位置
+    const x = 500 + (Math.random() * 100 - 50);
+    const y = 250 + (Math.random() * 60 - 30);
+    addScene(name, x, y, category, image);
+  };
+
+  // 处理添加新场景按钮点击
+  const handleAddSceneClick = () => {
+    setShowAddSceneModal(true);
   };
 
   // 处理场景模板点击
@@ -185,7 +193,7 @@ export default function Canvas() {
               </div>
               <WorldView
                 onSceneDoubleClick={handleSceneDoubleClick}
-                onAddScene={handleAddScene}
+                onAddScene={handleAddSceneClick}
                 onSceneTemplateClick={handleSceneTemplateClick}
               />
             </div>
@@ -258,8 +266,8 @@ export default function Canvas() {
                       .map((poi: POI) => {
                         // 使用originalId进行精确匹配，而不是name
                         // 检查POI是否已在当前场景的画布上
-                        const isOnCanvas = currentBook?.scenes.some(scene => 
-                          scene.id === activeSceneId && 
+                        const isOnCanvas = currentBook?.scenes.some(scene =>
+                          scene.id === activeSceneId &&
                           scene.pois.some(canvasPoi => canvasPoi.originalId === poi.id)
                         ) || false;
                         const isParent = availablePOIs.some(p => p.parentId === poi.id);
@@ -378,6 +386,13 @@ export default function Canvas() {
         isOpen={showTemplateManager}
         onClose={() => setShowTemplateManager(false)}
         onTemplateApplied={() => setViewMode('scene')}
+      />
+
+      {/* 添加场景 Modal */}
+      <AddSceneModal
+        isOpen={showAddSceneModal}
+        onClose={() => setShowAddSceneModal(false)}
+        onAdd={handlePerformAddScene}
       />
     </div>
   );
